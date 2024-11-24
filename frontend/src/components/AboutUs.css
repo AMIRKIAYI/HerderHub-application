@@ -1,0 +1,13 @@
+header {
+    background-image: url('https://img.freepik.com/premium-photo/cattle-morning-light-herd-cattle-flock-together-early-morning-light_1028938-227096.jpg?ga=GA1.1.1776042718.1729511895&semt=ais_hybrid');
+    background-repeat: no-repeat;
+    background-size: cover; /* Ensures the image covers the entire header */
+    background-position: center; /* Centers the image */
+    width: 100%;
+    height: 80vh; /* Adjust the height as needed */
+}
+.newsect{
+    text-align: center;
+    padding: auto;
+    padding-top: 200px;
+}

@@ -1,0 +1,52 @@
+.App {
+  animation: none; /* Removed CSS animation, handled by React state now */
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  transition: background-image 1s ease-in-out;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+.overlay-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  padding: 1rem;
+  background-color: transparent; /* Semi-transparent background for contrast */
+  border-radius: 10px;
+  max-width: 100%;
+
+  font-family: "Oswald", sans-serif;
+  font-optical-sizing: auto;
+ 
+  font-style: normal;
+ 
+}
+
+
+@media (min-width: 1200px) {
+  .overlay-text {
+    font-size: 3.5rem; /* Larger text for bigger screens */
+    max-width: 60%;
+  }
+}
+
+.blurred {
+  filter: blur(4px);
+  transition: filter 0.3s ease-in-out;
+}
+
+.maindiv {
+  transition: filter 0.3s ease-in-out;
+}
+

@@ -1,0 +1,338 @@
+
+.nav1 {
+    background-color: brown;
+    color: #ffffff;
+    padding: 0;
+    
+}
+.nav2{
+    background-color: #a52a2a;
+  
+  
+    color: #ffffff;
+    margin-top: 1px;
+    padding-left: 350px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    
+    
+}
+
+.newclass{
+    text-align: center;
+    background-color: brown;
+   
+
+} 
+
+.search{
+    color: black;
+    
+}
+  
+
+/* Navbar1.css */
+
+/* Slide-in menu base style */
+.menu-slide {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 70vh;
+    width: 200px;
+    background-color: #a50909;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    z-index: 1000; /* High z-index to stay above other elements */
+    color: #fff;
+  }
+  
+  /* When menu is open */
+  .menu-slide.open {
+    transform: translateX(0);
+  }
+  
+  /* Overlay style */
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 70vh;
+    background: rgba(0, 0, 0, 0.5); /* Dark transparent overlay */
+    z-index: 999; /* Just below the menu */
+    display: none; /* Hidden by default */
+  }
+  
+  /* Show overlay when menu is open */
+  .overlay.show {
+    display: block;
+  }
+  
+  .close-button {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+  }
+  
+  .close-button button {
+   
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    border-radius: 20px;
+    width: 60px;
+    padding: 6px;
+  }
+  .close-button button:hover{
+    background-color: #ff9c1b;
+
+  }
+  
+  .menu-slide ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 0;
+  }
+  
+  .menu-slide li {
+    margin: 10px 0;
+  }
+  
+  .menu-slide a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1rem;
+    display: block;
+    padding: 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .menu-slide a:hover {
+    background-color: #ff9c1b;
+  }
+  
+/* Slide-in login menu styling */
+.login-slide {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 250px;
+  height: 50%;
+  background-color: #d10606; /* dark background */
+  transition: right 0.3s ease;
+  z-index: 1000;
+}
+
+.login-slide.open {
+  right: 0;
+}
+
+.login-slide .close-button {
+  text-align: right;
+  padding: 10px;
+}
+
+.login-slide button {
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 20px;
+  padding: 6px;
+}
+
+.login-slide .newbar:hover {
+  background-color: #ff9c1b;
+}
+/* Default styling for "My Account" dropdown */
+.account-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 150px;
+  background-color: #a50909;
+  color: #fff;
+  display: none; /* Initially hidden */
+  padding: 10px;
+  border-radius: 4px;
+  z-index: 1001;
+}
+
+.account-menu.open {
+  display: block; /* Show menu when open */
+}
+
+.account-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.account-menu li {
+  margin: 8px 0;
+}
+
+.account-menu a,
+.account-menu button {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: block;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.account-menu a:hover,
+.account-menu button:hover {
+  background-color: #ff9c1b;
+}
+
+
+/* Default styling for Browse dropdown menu */
+.browse-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 150px;
+  background-color: #a50909;
+  color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  z-index: 1001;
+}
+
+.browse-dropdown li {
+  margin: 8px 0;
+}
+
+.browse-dropdown a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: block;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.browse-dropdown a:hover {
+  background-color: #ff9c1b;
+}
+
+/* Small screen adjustments */
+@media (max-width: 640px) {
+  .browse-dropdown {
+    position: static; /* Position under the link */
+    width: 100%; /* Full width for mobile */
+    margin-top: 8px; /* Space between link and dropdown */
+    background-color: #a50909;
+    padding: 10px;
+    border-radius: 0; /* No rounded corners for full width */
+  }
+
+  .browse-dropdown a {
+    padding: 12px; /* Increase padding for mobile */
+    font-size: 1rem;
+  }
+}
+
+
+
+/* Slide-in effect for small screens */
+@media (max-width: 768px) {
+  .account-menu {
+    position: fixed;       /* Fixed to the viewport for better mobile UX */
+    top: 0;
+    right: 0;
+    width: 250px;          /* Adjust width as needed */
+    height: 40%;          /* Full height for a sidebar effect */
+    transform: translateX(100%); /* Off-screen initially */
+    transition: transform 0.3s ease;
+    padding: 20px;
+    display: block;        /* Display as block on small screens */
+  }
+
+  .account-menu.open {
+    transform: translateX(0); /* Slide in when open */
+  }
+
+  .account-menu ul {
+    margin-top: 20px; /* Space from top */
+  }
+}
+
+
+  
+
+/* Navbar1.css or Div1.css */
+
+@media (max-width: 640px) { /* Adjust according to your needs */
+  .bg-gray-50, .bg-gray-900 {
+    padding: 1rem; /* Add padding to ensure the content is not cramped */
+    border-radius: 8px; /* Rounded corners for a softer look */
+  }
+
+  .login-slide, .menu-slide {
+    padding: 1rem; /* Add padding for better touch targets */
+  }
+
+  /* Adjust input fields for smaller screens */
+  input {
+    font-size: 1rem; /* Ensure input text is readable */
+    padding: 0.75rem; /* Increase padding for better usability */
+  }
+
+  button {
+    padding: 0.75rem; /* Ensure buttons are easily clickable */
+  }
+
+  .newclass {
+    padding: 0.5rem; /* Padding for mobile search bar */
+  }
+}
+
+/* Additional adjustments for larger screens */
+@media (min-width: 641px) {
+  .bg-gray-50, .bg-gray-900 {
+    padding: 2rem; /* More padding for larger screens */
+  }
+}
+
+
+
+
+
+.relative {
+  position: relative; /* Required for the absolute positioning of the dropdown */
+}
+
+.absolute {
+  position: absolute;
+  z-index: 1000; /* Ensures dropdown is above other content */
+}
+
+.absolute ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.absolute li {
+  border-bottom: 1px solid #e5e5e5; /* Optional for separating items */
+}
+
+.absolute li:hover {
+  background-color: #f0f0f0; /* Optional hover effect */
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.text-black {
+  color: black;
+}

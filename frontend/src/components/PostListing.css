@@ -1,0 +1,132 @@
+/* Full height centering for .sector container */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+.sector {
+  display: flex;
+  flex-direction: column; /* Arrange children vertically */
+  align-items: center;    /* Center children horizontally */
+  justify-content: center; /* Center content vertically */
+  min-height: 100vh;
+  padding: 20px;
+  background-size: cover;
+  background-position: center;
+  color: white;
+  text-align: center;
+  animation: slideImages 20s infinite; /* Slide images animation */
+}
+
+/* Center the h1 and give some space below */
+.sector-message {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #c70303;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  margin-bottom: 20px; /* Space below h1 */
+  text-align: center;
+}
+
+/* Center the form container below h1 */
+.sector-form {
+  background-color: #790202;
+  padding: 20px;
+  width: 90%; /* Responsive width */
+  max-width: 800px; /* Max width for large screens */
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center the form */
+  margin-bottom: 30px;
+}
+
+/* Center the submit button in form */
+.explore {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Add padding for form groups */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* .col-span-1{
+  text-align: left;
+} */
+
+/* Slide Images Animation */
+@keyframes slideImages {
+  0% {
+    background-image: url('https://img.freepik.com/premium-photo/cow-grazing-farm_35947-85.jpg?ga=GA1.1.1776042718.1729511895&semt=ais_hybrid');
+  }
+  33% {
+    background-image: url('https://img.freepik.com/premium-photo/sheep-grazing-meadow_35947-86.jpg'); /* Replace with another URL */
+  }
+  66% {
+    background-image: url('https://img.freepik.com/premium-photo/goat-grazing-hills_35947-87.jpg'); /* Replace with another URL */
+  }
+  100% {
+    background-image: url('https://img.freepik.com/premium-photo/cow-grazing-farm_35947-85.jpg?ga=GA1.1.1776042718.1729511895&semt=ais_hybrid'); /* Loop back to the first image */
+  }
+}
+
+.sector1 {
+  
+ color: #ffffff;
+}
+
+
+
+/* Error Message Styling */
+.error-text {
+  color: red;
+  font-size: 14px;
+  margin-top: 5px;
+  padding-left: 5px;
+}
+
+/* Image Preview Styling */
+.image-preview {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  
+}
+
+.image-thumbnail {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.image-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: rgba(255, 0, 0, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.remove-image-btn:hover {
+  opacity: 1;
+}
+

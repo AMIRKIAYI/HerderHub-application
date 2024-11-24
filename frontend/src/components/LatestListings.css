@@ -1,0 +1,11 @@
+/* .latest{
+    margin-top: 400px;
+} */
+
+.bg-brown{
+    background-color: brown;
+}
+
+.bg-brown:hover{
+    background-color: rgb(128, 14, 14);
+}
