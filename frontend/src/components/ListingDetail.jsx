@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEnvelope, faPhoneAlt, faComment } from "@fortawesome/free-solid-svg-icons";
+import { faEnvelope, faComment } from "@fortawesome/free-solid-svg-icons";
 import RelatedListings from "./RelatedListings";
+import { toast, ToastContainer } from 'react-toastify'; // Import toast and ToastContainer
+import 'react-toastify/dist/ReactToastify.css'; // Import the toast styles
+
 
 const ListingDetail = () => {
   const { id } = useParams();
@@ -16,6 +19,9 @@ const ListingDetail = () => {
     subject: `Inquiry about ${listing?.title || "Item"}`,
     message: "",
   });
+  const [emailStatus, setEmailStatus] = useState(""); // State for email status
+
+
 
   // Advertisement messages
   const adMessages = [
@@ -39,14 +45,15 @@ const ListingDetail = () => {
     const fetchListing = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/listings/${id}`);
+        console.log(response.data); // Debugging
         setListing(response.data);
       } catch (error) {
+        console.error(error); // Debugging
         setError("Failed to fetch listing details.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchListing();
 
     // Cycle through the ads every 5 seconds
@@ -67,48 +74,66 @@ const ListingDetail = () => {
   };
 
   const handleEmailClick = () => {
+    console.log("Email Seller button clicked");
     setShowEmailForm(true);
   };
 
   const handleCloseEmailForm = () => {
     setShowEmailForm(false);
   };
-
+  const user = JSON.parse(localStorage.getItem('user')) || { name: "Guest", email: "no-reply@example.com" };
+  // console.log("User details:", user); // Debugging the user details
+  
+  // In the email submit function
   const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-
-    // Fetch logged-in user details from the session or JWT
-    const user = JSON.parse(localStorage.getItem("user")); // Assuming the user is stored in localStorage
-
-    try {
-      // Send the email to the backend
-      const response = await fetch("http://localhost:5000/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sellerEmail: listing.sellerEmail,
-          subject: emailData.subject,
-          message: emailData.message,
-          senderName: user.name || "Anonymous", // From the logged-in user data
-          senderEmail: user.email || "sender@example.com", // From the logged-in user data
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Show success message
-        setEmailStatus("Email sent successfully!");
-        handleCloseEmailForm();
-      } else {
-        setEmailStatus(data.error || "Failed to send email");
+      e.preventDefault();
+  
+      // Log user details to verify the correct email is being used
+      // console.log("User details:", user);
+  
+      // Log email data before sending to backend
+      // console.log("Email data being sent:", {
+      //     sellerEmail: listing.sellerEmail,  // Recipient's email
+      //     subject: emailData.subject,        // Subject of the email
+      //     message: emailData.message,        // Message content
+      //     senderName: user?.username || "Anonymous", // User's name or fallback
+      //     senderEmail: user?.email || "no-reply@example.com", // User's email or fallback
+      // });
+  
+      try {
+          const response = await fetch('http://localhost:5000/api/send-email', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                  sellerEmail: listing.sellerEmail, // recipient's email
+                  subject: emailData.subject,
+                  message: emailData.message,
+                  senderName: user?.username || "Anonymous", // fallback name
+                  senderEmail: user?.email || "no-reply@example.com", // fallback email
+              }),
+          });
+  
+          const data = await response.json();
+          if (response.ok) {
+              setEmailStatus("Email sent successfully!");
+              toast.success('Email sent successfully! ✔️', { position: "top-center", autoClose: 5000 }); // Show success toast
+              handleCloseEmailForm();
+              
+          } else {
+              setEmailStatus(data.error || "Failed to send email");
+              toast.error(data.error || 'Failed to send email 😞', { position: "top-center", autoClose: 5000 }); // Show error toast
+            
+          }
+      } catch (error) {
+          console.error("Error in API request:", error);
+          setEmailStatus("Error sending email");
+          toast.error('Error sending email 😞', { position: "top-center", autoClose: 5000 }); // Show error toast
       }
-    } catch (error) {
-      setEmailStatus("Error sending email");
-    }
   };
+  
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -134,12 +159,11 @@ const ListingDetail = () => {
     <div className="flex flex-col mx-auto p-6 bg-gray-100 shadow-lg rounded-lg">
       {/* Advertisement Section */}
       <div
-  className="relative bg-cover bg-center h-30 text-white text-center flex items-center justify-center p-3 mb-6 animate-zoom"
-  style={{ backgroundImage: adMessages[currentAdIndex].backgroundImage }}
->
-  <p className="font-semibold text-lg">{adMessages[currentAdIndex].text}</p>
-</div>
-
+        className="relative bg-cover bg-center h-30 text-white text-center flex items-center justify-center p-3 mb-6 animate-zoom"
+        style={{ backgroundImage: adMessages[currentAdIndex].backgroundImage }}
+      >
+        <p className="font-semibold text-lg">{adMessages[currentAdIndex].text}</p>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-6 mt-8 bg-white p-8">
         {/* Left side: Image Gallery with Carousel */}
@@ -175,7 +199,7 @@ const ListingDetail = () => {
           <p className="text-xl text-gray-600">{listing.description}</p>
           <div className="text-lg text-gray-900">
             <p>
-              <span className="font-bold">Price:</span> ${listing.price}
+              <span className="font-bold">Price:</span> Kshs {listing.price}
             </p>
             <p>
               <span className="font-bold">Location:</span> {listing.location}
@@ -192,50 +216,42 @@ const ListingDetail = () => {
           </div>
 
           <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-  <h3 className="text-xl font-semibold text-gray-900">Seller Details</h3>
-  <p className="text-lg text-gray-900">
-    <span className="font-bold">Name:</span> {listing.sellerName}
-  </p>
-  <p className="text-lg text-gray-900">
-    <span className="font-bold">Email:</span> {listing.sellerEmail}
-  </p>
-  <p className="text-lg text-gray-900">
-    <span className="font-bold">Phone:</span> {listing.sellerPhone}
-  </p>
-  <p className="text-lg text-gray-900">
-    <span className="font-bold">Address:</span> {listing.sellerAddress}
-  </p>
+            <h3 className="text-xl font-semibold text-gray-900">Seller Details</h3>
+            <p className="text-lg text-gray-900">
+              <span className="font-bold">Name:</span> {listing.sellerName}
+            </p>
+            <p className="text-lg text-gray-900">
+              <span className="font-bold">Email:</span> {listing.sellerEmail}
+            </p>
+            <p className="text-lg text-gray-900">
+              <span className="font-bold">Phone:</span> {listing.sellerPhone}
+            </p>
+            <p className="text-lg text-gray-900">
+              <span className="font-bold">Address:</span> {listing.sellerAddress}
+            </p>
 
-  {/* Buttons for Email and Contact Seller */}
-  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    <button
-      className="flex items-center justify-center px-4 py-2 text-sm bg-brown text-white rounded-lg shadow-md hover:bg-brown-600 transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
-      onClick={handleEmailClick}
-    >
-      <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
-      Email Seller
-    </button>
-    <button
-      className="flex items-center justify-center px-4 py-2 text-sm bg-brown text-white rounded-lg shadow-md hover:bg-brown-600 transition-all focus:outline-none focus:ring-2 focus:ring-green-300"
-    >
-      <FontAwesomeIcon icon={faPhoneAlt} className="mr-2" />
-      Call Seller
-    </button>
-    <button
-      className="flex items-center justify-center px-4 py-2 text-sm bg-brown text-white rounded-lg shadow-md hover:bg-brown-600 transition-all focus:outline-none focus:ring-2 focus:ring-yellow-300"
-    >
-      <FontAwesomeIcon icon={faComment} className="mr-2" />
-      Leave a Message
-    </button>
-  </div>
-</div>
-
-         
-         
+            {/* Buttons for Email and Contact Seller */}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button
+                className="flex items-center justify-center px-4 py-2 text-sm bg-[#8b5cf6] text-white font-semibold rounded-md hover:bg-purple-600"
+                onClick={handleEmailClick}
+              >
+                <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
+                Email Seller
+              </button>
+              <button
+                className="flex items-center justify-center px-4 py-2 text-sm bg-brown text-white rounded-lg shadow-md hover:bg-brown-600 transition-all focus:outline-none focus:ring-2 focus:ring-yellow-300"
+              >
+                <FontAwesomeIcon icon={faComment} className="mr-2" />
+                Leave a Message
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      
+      {/* Related Listings */}
+      <RelatedListings category={listing.category} />
 
       {/* Email Form Modal */}
       {showEmailForm && (
@@ -281,12 +297,21 @@ const ListingDetail = () => {
                 </button>
               </div>
             </form>
+            {/* Display email status */}
+            {emailStatus && (
+              <div>
+                <p className={`mt-4 text-sm ${emailStatus.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                  {emailStatus}
+                </p>
+                <pre className="mt-4 bg-gray-100 p-2 rounded-lg text-xs text-gray-800">
+                  {JSON.stringify(emailData, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Related Listings Component */}
-      <RelatedListings category={listing.category} />
+       <ToastContainer /> {/* ToastContainer is required to display toast notifications */}
     </div>
   );
 };

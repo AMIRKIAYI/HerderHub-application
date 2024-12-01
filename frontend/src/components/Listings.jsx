@@ -186,7 +186,7 @@ function Listings() {
                   </p>
                   <div className="mt-auto">
                     <p className="text-md font-medium text-green-600 mb-1">
-                      ${listing.price}
+                      Kshs {listing.price}
                     </p>
                     <p className="text-sm text-gray-500">
                       <i className="fas fa-map-marker-alt mr-1"></i>

@@ -1,4 +1,4 @@
-
+import PropTypes from 'prop-types';
 import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faUser, faTimes, faPen } from '@fortawesome/free-solid-svg-icons';
@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import SignUp from './SignUp';
 import SignIn from './SignIn';
 
-function Navbar() {
+function Navbar({ data, onFilter }) {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isLoginMenuOpen, setLoginMenuOpen] = useState(false);
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -19,8 +19,25 @@ function Navbar() {
   const [redirectAfterLogin, setRedirectAfterLogin] = useState(false); // Track if login should redirect to post page
   const [showSignInAlert, setShowSignInAlert] = useState(false); // New state for sign-in alert
   const [isBrowseDropdownOpen, setBrowseDropdownOpen] = useState(false); // New state for browse dropdown
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredResults, setFilteredResults] = useState([]);
+
 
   const navigate = useNavigate();
+
+  const handleSearchChange = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+
+    // Perform filtering
+    const results = data.filter(item =>
+      item.title.toLowerCase().includes(term.toLowerCase()) ||
+      item.category.toLowerCase().includes(term.toLowerCase())
+    );
+
+    setFilteredResults(results);
+    onFilter(results); // Callback to parent to update Listings component
+  };
 
   // Open sign-in modal or navigate to the listing page if logged in
   const handlePostListingClick = () => {
@@ -166,10 +183,32 @@ function Navbar() {
 
         <div className="newclass sm:hidden px-4 py-3 dark:bg-gray-700">
           <input
-            type="text"
-            placeholder="Search..."
-            className="w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-          />
+          type="text"
+          placeholder="Search listings..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="search-input w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+        />
+       {searchTerm && (
+    <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-md">
+      {filteredResults.length > 0 ? (
+        <ul>
+          {filteredResults.map((result, index) => (
+            <li
+              key={index}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+            >
+              {result}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-4 py-2 text-gray-500 text-center">
+          No results found
+        </div>
+      )}
+    </div>
+  )}
         </div>
 
         <nav className="nav2 dark:bg-gray-700">
@@ -198,11 +237,33 @@ function Navbar() {
               </ul>
 
               <div className="search hidden sm:block flex-grow mx-10">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-                />
+              <input
+          type="text"
+          placeholder="Search listings..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="search-input w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+        />
+         {searchTerm && (
+        <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-md">
+          {filteredResults.length > 0 ? (
+            <ul>
+              {filteredResults.map((result, index) => (
+                <li
+                  key={index}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  {result}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-4 py-2 text-gray-500 text-center">
+              No results found
+            </div>
+          )}
+        </div>
+      )}
                 <button onClick={handlePostListingClick} className="ml-2 px-4 py-2 text-white newbag rounded">
                   Post Listing
                 </button>
@@ -264,5 +325,16 @@ function Navbar() {
     </div>
   );
 }
+// Add prop validation
+Navbar.propTypes = {
+  data: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      title: PropTypes.string.isRequired,
+      category: PropTypes.string.isRequired,
+    })
+  ).isRequired,
+  onFilter: PropTypes.func.isRequired,
+};
 
 export default Navbar;

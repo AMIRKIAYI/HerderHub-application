@@ -122,7 +122,7 @@ const Settings = () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Change Password</h2>
             <button
               onClick={toggleChangePassword}
-              className="w-full py-2 px-4 bg-indigo-600 text-white text-lg font-medium rounded-lg shadow hover:bg-indigo-700 focus:ring focus:ring-indigo-300 transition-all mb-4"
+              className="w-full py-2 px-4 bg-[#ff5100] text-white text-lg font-medium rounded-lg shadow hover:bg-[#ff5160]  transition-all mb-4"
             >
               {showChangePassword ? 'Hide Change Password' : 'Show Change Password'}
             </button>

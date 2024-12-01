@@ -1,4 +1,5 @@
 import HerderHub5 from '../images/HerderHub5.png';
+import './Footer.css';
 
 function Footer() {
   return (

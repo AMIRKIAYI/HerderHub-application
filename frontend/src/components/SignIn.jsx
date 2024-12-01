@@ -48,7 +48,10 @@ function SignIn({ onClose, onSignUpClick, onLoginSuccess, showAlert }) {
       try {
         const response = await axios.post('http://localhost:5000/signin', values);
         if (response.status === 200) {
+          // Store JWT token and user data in localStorage
           localStorage.setItem('isLoggedIn', 'true'); // Persist login state
+          localStorage.setItem('token', response.data.token); // Store the JWT token
+          localStorage.setItem('user', JSON.stringify(response.data.user)); // Store user details (email and username)
           navigate('/'); // Redirect or close modal on successful login
           onLoginSuccess();
         } else {
@@ -63,6 +66,9 @@ function SignIn({ onClose, onSignUpClick, onLoginSuccess, showAlert }) {
       }
     }
   };
+  
+  
+  
   
 
   return (

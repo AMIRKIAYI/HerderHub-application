@@ -1,7 +1,10 @@
 /* .latest{
     margin-top: 400px;
 } */
+.container{
+    background-color: rgb(250, 248, 248);
 
+}
 .bg-brown{
     background-color: brown;
 }

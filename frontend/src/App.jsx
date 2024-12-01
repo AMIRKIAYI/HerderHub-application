@@ -36,7 +36,7 @@ function App() {
             element={
               <>
                 <Div1 />
-                <LatestListings />
+                <LatestListings key="latest-listings" />
                 <Div4 />
                 <Div2 />
               </>

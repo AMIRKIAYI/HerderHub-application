@@ -1,80 +1,93 @@
+
+
 const express = require('express');
 const mysql = require("mysql2");
 const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const nodemailer = require('nodemailer');
 const jwt = require("jsonwebtoken"); // Import JWT for user authentication
+
+const nodemailer = require("nodemailer");
+const bodyParser = require('body-parser');
+require('dotenv').config(); // For secure environment variables
+
+
+
+
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Middleware for parsing request bodies
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// MySQL2 database connection
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,       // Database host
+    user: process.env.DB_USER,       // MySQL username
+    password: process.env.DB_PASSWORD, // MySQL password
+    database: process.env.DB_NAME    // Database name
+});
+
+// Test the connection
+db.connect(err => {
+    if (err) {
+        console.error("Error connecting to the database:", err.message);
+        return;
+    }
+    console.log("Connected to the MySQL database.");
+});
 
 // Secret key for JWT token
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 
 
-// Nodemailer transport configuration for email sending
-const transporter = nodemailer.createTransport({
-  service: 'gmail',  // Use your mail service (Gmail in this case)
-  auth: {
-      user: process.env.EMAIL_USER,  // Use email from environment variable
-      pass: process.env.EMAIL_PASS   // Use app-specific password from environment variable
-  }
+
+app.post("/api/send-email", async (req, res) => {
+    const { sellerEmail, subject, message, senderName, senderEmail } = req.body;
+
+    if (!sellerEmail || !subject || !message) {
+        return res.status(400).json({ error: 'Seller email, subject, and message are required.' });
+    }
+
+    try {
+        // Create a transporter for sending emails
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER, // Use environment variable for security
+                pass: process.env.EMAIL_PASS, // Use environment variable for security
+            },
+        });
+
+        // Email details
+        const mailOptions = {
+            from: senderEmail, // Sender email
+            to: sellerEmail,   // Recipient email (seller's email)
+            subject: subject,
+            text: `You have a new message from ${senderName} (${senderEmail}):\n\n${message}`,
+        };
+
+        // Send the email
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ success: 'Email sent successfully!' });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        res.status(500).json({ error: 'Failed to send email.' });
+    }
 });
 
 
 
-// JWT authentication middleware to verify user
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization'];
-
-  if (!token) {
-      return res.status(401).json({ error: "No token provided" });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-          return res.status(403).json({ error: "Invalid token" });
-      }
-      req.user = user; // Attach user data to the request
-      next();
-  });
-};
 
 
-// POST endpoint to handle email submission (send email from logged-in user)
-app.post('/api/send-email', authenticateToken, (req, res) => {
-  const { sellerEmail, subject, message } = req.body;
 
-  const senderEmail = req.user.email; // Get the sender's email from the authenticated user
 
-  // Define email options
-  const mailOptions = {
-      from: senderEmail, // Sender's email address (dynamically fetched from authenticated user)
-      to: sellerEmail,   // Seller's email address (recipient)
-      subject: subject,  // Email subject
-      text: message,     // Email message content
-      html: `
-          <p><strong>Message:</strong></p>
-          <p>${message}</p>
-          <p><strong>Sender's Email:</strong> ${senderEmail}</p>
-      `  // HTML version of the email (you can customize this further)
-  };
 
-  // Send the email using the transporter
-  transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-          console.error("Error sending email:", error);
-          return res.status(500).json({ error: "Failed to send email" });
-      }
-
-      res.status(200).json({ message: "Email sent successfully", info });
-  });
-});
 
 // Create uploads folder if it doesn't exist
 const uploadDir = path.join(__dirname, "uploads");
@@ -110,29 +123,6 @@ const upload = multer({
         }
     }
 });
-
-// MySQL database connection
-const db = mysql.createConnection({
-    host: "localhost",  // Database host
-    user: "root",       // MySQL username
-    password: "Amir@2024#",  // MySQL password
-    database: "signup"  // Database name
-});
-
-// Test the MySQL connection
-db.connect((err) => {
-    if (err) {
-        console.error("Database connection error:", err.message);
-        return;
-    }
-    console.log("Connected to the database.");
-});
-
-
-
-  
-
-
 
 
 
@@ -252,6 +242,54 @@ app.get("/api/listings/:id", (req, res) => {
     });
 });
 
+
+
+
+
+app.get('/api/latest-listings', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 3;
+    const offset = (page - 1) * limit;
+  
+    const sql = `SELECT id, title, description, price, location, images 
+                 FROM listings 
+                 ORDER BY created_at DESC 
+                 LIMIT ? OFFSET ?`;
+  
+    db.query(sql, [limit, offset], (err, results) => {
+      if (err) {
+        console.error("Error fetching listings:", err);
+        return res.status(500).send("Failed to load listings.");
+      }
+  
+      if (results.length === 0) {
+        return res.json([]); // No listings found
+      }
+  
+      const formattedResults = results.map((listing) => {
+        let image;
+        console.log("Raw images data:", listing.images); // Log raw images data
+  
+        // Directly use imagesArray as it's already an array
+        if (Array.isArray(listing.images) && listing.images.length > 0) {
+          image = `http://localhost:5000/uploads/${listing.images[0]}`; // Use the first image
+        } else {
+          image = "https://via.placeholder.com/300"; // Fallback image
+        }
+  
+        // Return the listing with a single `image` field
+        return {
+          ...listing,
+          image, // Add the resolved image URL
+        };
+      });
+  
+      res.json(formattedResults);
+    });
+  });
+  
+  
+  
 // DELETE endpoint to remove listing by ID
 app.delete("/api/listings/:id", (req, res) => {
     const listingId = req.params.id;
@@ -354,7 +392,8 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
     });
 });
 
-// Signup endpoint
+const bcrypt = require('bcryptjs');
+
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
 
@@ -362,61 +401,144 @@ app.post('/signup', (req, res) => {
         return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const checkQuery = 'SELECT * FROM users WHERE email = ?';
-    db.execute(checkQuery, [email], (err, results) => {
+    // Hash the password before saving to the database
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
         if (err) {
-            console.error("Error checking for existing user:", err.message);
+            console.error("Error hashing password:", err.message);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
 
-        if (results.length > 0) {
-            return res.status(409).json({ error: "An account with this email already exists" });
-        }
-
-        const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
-        db.execute(insertQuery, [email, password], (err, results) => {
+        const checkQuery = 'SELECT * FROM users WHERE email = ?';
+        db.execute(checkQuery, [email], (err, results) => {
             if (err) {
-                console.error("Error inserting data:", err.message);
+                console.error("Error checking for existing user:", err.message);
                 return res.status(500).json({ error: 'Internal Server Error' });
             }
-            res.status(201).json({ message: 'User created successfully', userId: results.insertId });
+
+            if (results.length > 0) {
+                return res.status(409).json({ error: "An account with this email already exists" });
+            }
+
+            const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
+            db.execute(insertQuery, [email, hashedPassword], (err, results) => {
+                if (err) {
+                    console.error("Error inserting data:", err.message);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+                res.status(201).json({ message: 'User created successfully', userId: results.insertId });
+            });
         });
     });
 });
 
+
 // POST endpoint to handle login and generate JWT token
 app.post('/signin', (req, res) => {
     const { email, password } = req.body;
-  
+
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+        return res.status(400).json({ error: "Email and password are required" });
     }
-  
+
     const query = 'SELECT * FROM users WHERE email = ?';
     db.execute(query, [email], (err, results) => {
-      if (err) {
-        console.error("Error fetching user:", err.message);
-        return res.status(500).json({ error: 'Internal Server Error' });
-      }
-  
-      if (results.length === 0 || results[0].password !== password) {
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
-  
-      // Generate JWT token
-      const user = results[0];
-      const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-  
-      res.status(200).json({ message: "Login successful", token });
+        if (err) {
+            console.error("Error fetching user:", err.message);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const user = results[0];
+
+        // Use bcrypt.compare to compare the plain password with the hashed password
+        bcrypt.compare(password, user.password, (err, match) => {
+            if (err) {
+                console.error("Error comparing passwords:", err.message);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+
+            if (!match) {
+                return res.status(401).json({ error: "Invalid email or password" });
+            }
+
+            // Extract the username from the email (everything before the '@')
+            const username = email.split('@')[0];
+
+            // Generate JWT token after successful password match
+            const token = jwt.sign({ userId: user.id, email: user.email, username }, JWT_SECRET, { expiresIn: '1h' });
+
+            // Return the token and the username to the client
+            res.status(200).json({ message: "Login successful", token, user: { email: user.email, username } });
+        });
     });
-  });
-
-
-  
+});
 
 
 
-  
+
+
+
+
+// POST endpoint to handle password change
+app.post('/change-password', (req, res) => {
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Email, current password, and new password are required" });
+    }
+
+    // Step 1: Find the user by email
+    const query = 'SELECT * FROM users WHERE email = ?';
+    db.execute(query, [email], (err, results) => {
+        if (err) {
+            console.error("Error fetching user:", err.message);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const user = results[0];
+
+        // Step 2: Verify current password using bcrypt
+        bcrypt.compare(currentPassword, user.password, (err, isMatch) => {
+            if (err) {
+                console.error("Error comparing passwords:", err.message);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+
+            if (!isMatch) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+
+            // Step 3: Hash the new password
+            bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
+                if (err) {
+                    console.error("Error hashing new password:", err.message);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+
+                // Step 4: Update the password in the database
+                const updateQuery = 'UPDATE users SET password = ? WHERE email = ?';
+                db.execute(updateQuery, [hashedPassword, email], (err, results) => {
+                    if (err) {
+                        console.error("Error updating password:", err.message);
+                        return res.status(500).json({ error: 'Internal Server Error' });
+                    }
+
+                    // Step 5: Respond with success message
+                    res.status(200).json({ message: "Password changed successfully" });
+                });
+            });
+        });
+    });
+});
+
+
 
 // Static files middleware for serving uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
