@@ -808,3 +808,37 @@ const ListingDetail = () => {
   
   export default ListingDetail;
   
+
+  // Fetch user settings
+app.get('/api/settings', authenticateUser, async (req, res) => {
+  const userId = req.userId; // Extracted from the authentication token
+
+  if (!userId) {
+    return res.status(400).json({ error: "Authentication failed. User ID is missing." });
+  }
+
+  try {
+    const query = "SELECT email, username, preferences, profile_picture FROM users WHERE id = ?";
+    db.execute(query, [userId], (err, results) => {
+      if (err) {
+        console.error("Error fetching user settings:", err.message);
+        return res.status(500).json({ error: "Failed to fetch user settings." });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      const user = results[0];
+      user.preferences = user.preferences ? JSON.parse(user.preferences) : null;
+      user.profile_picture = user.profile_picture
+        ? `http://localhost:5000/uploads/${user.profile_picture}`
+        : null;
+
+      res.status(200).json(user);
+    });
+  } catch (err) {
+    console.error("Unexpected error:", err.message);
+    res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+  }
+});

@@ -21,6 +21,7 @@ import PostListing from "./components/PostListing";
 import ListingDetail from "./components/ListingDetail";
 import Account from "./components/Account";
 import MyListings from "./components/MyListings";
+import EditListingForm from "./components/EditListingForm";
 import { AuthProvider } from './components/AuthContext';
 
 function App() {
@@ -50,11 +51,13 @@ function App() {
         {/* <Route path="/AdminDashboard" element={<AdminDashboard/>} />  */}
 
           {/* <Route path="/profile" element={<Profile />}> */}
-          <Route path="/Account" element={<Account />} >
-          <Route path="/Account/Messages" element={<Messages />} />
-          <Route path="/Account/Settings" element={<Settings />} />
-          <Route path="/Account/MyListings" element={<MyListings />} />
-          </Route>
+          <Route path="/Account" element={<Account />}>
+  <Route path="Messages" element={<Messages />} />
+  <Route path="Settings" element={<Settings />} />
+  <Route path="MyListings" element={<MyListings />} />
+  <Route path="MyListings/edit/:id" element={<EditListingForm />} /> {/* Nested under MyListings */}
+</Route>
+
           <Route>
           <Route path="/listings" element={<Listings />} />
           <Route path="/listing/:id" element={<ListingDetail />} /> 

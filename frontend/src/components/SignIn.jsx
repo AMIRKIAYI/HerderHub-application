@@ -6,8 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';  // Import the triangle exclamation icon
 
-
-
 function SignIn({ onClose, onSignUpClick, onLoginSuccess, showAlert }) {
   SignIn.propTypes = {
     onClose: PropTypes.func.isRequired,
@@ -43,33 +41,42 @@ function SignIn({ onClose, onSignUpClick, onLoginSuccess, showAlert }) {
     event.preventDefault();
     const validationErrors = SignInValidation(values);
     setErrors(validationErrors);
-  
+
     if (Object.keys(validationErrors).length === 0) {
-      try {
-        const response = await axios.post('http://localhost:5000/signin', values);
-        if (response.status === 200) {
-          // Store JWT token and user data in localStorage
-          localStorage.setItem('isLoggedIn', 'true'); // Persist login state
-          localStorage.setItem('token', response.data.token); // Store the JWT token
-          localStorage.setItem('user', JSON.stringify(response.data.user)); // Store user details (email and username)
-          navigate('/'); // Redirect or close modal on successful login
-          onLoginSuccess();
-        } else {
-          setServerError("Login failed. Please check your credentials.");
+        try {
+            const response = await axios.post('http://localhost:5000/signin', values);
+            
+            // Log the response data to check if it contains the accessToken
+            console.log('Backend response:', response.data);
+
+            if (response.status === 200) {
+                const { accessToken, user } = response.data;  // Destructuring accessToken and user from response data
+
+                if (accessToken) {
+                    // Save accessToken and user data in localStorage
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('accessToken', accessToken);  // Save accessToken instead of token
+                    localStorage.setItem('user', JSON.stringify(user));
+                    console.log('Access Token saved:', accessToken);
+                } else {
+                    console.error('Access Token not found in the response');
+                }
+
+                // Redirect user or handle successful login
+                navigate('/');
+                onLoginSuccess();
+            } else {
+                setServerError("Login failed. Please check your credentials.");
+            }
+        } catch (error) {
+            if (error.response && error.response.status === 401) {
+                setServerError("Invalid email or password. Please try again.");
+            } else {
+                setServerError("Unable to connect to the server. Please try again later.");
+            }
         }
-      } catch (error) {
-        if (error.response && error.response.status === 401) {
-          setServerError("Invalid email or password. Please try again.");
-        } else {
-          setServerError("Unable to connect to the server. Please try again later.");
-        }
-      }
     }
-  };
-  
-  
-  
-  
+};
 
   return (
     <section className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

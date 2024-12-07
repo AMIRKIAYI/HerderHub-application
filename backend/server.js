@@ -1,5 +1,5 @@
 
-
+require('dotenv').config();
 const express = require('express');
 const mysql = require("mysql2");
 const cors = require("cors");
@@ -8,16 +8,19 @@ const path = require("path");
 const fs = require("fs");
 const jwt = require("jsonwebtoken"); // Import JWT for user authentication
 
+const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
 const nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
-require('dotenv').config(); // For secure environment variables
+
+
 
 
 
 
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
 app.use(express.json());
 
 // Middleware for parsing request bodies
@@ -48,7 +51,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 
 app.post("/api/send-email", async (req, res) => {
-    const { sellerEmail, subject, message, senderName, senderEmail } = req.body;
+    const { sellerEmail, subject, message, senderName, senderEmail, livestockDetails } = req.body;
 
     if (!sellerEmail || !subject || !message) {
         return res.status(400).json({ error: 'Seller email, subject, and message are required.' });
@@ -64,12 +67,29 @@ app.post("/api/send-email", async (req, res) => {
             },
         });
 
+        // Construct the email content, including livestock details if available
+        const emailContent = `
+You have a new message from ${senderName || 'Unknown'} (${senderEmail || 'No email provided'}):
+
+${livestockDetails ? `
+Livestock Details:
+- Title: ${livestockDetails.title || 'N/A'}
+- Price: Kshs ${livestockDetails.price || 'N/A'}
+- Age: ${livestockDetails.age || 'N/A'} years
+- Sex: ${livestockDetails.sex || 'N/A'}
+- Location: ${livestockDetails.location || 'N/A'}
+` : ''}
+        
+Message:
+${message}
+        `;
+
         // Email details
         const mailOptions = {
-            from: senderEmail, // Sender email
+            from: senderEmail || process.env.EMAIL_USER, // Default to server email if sender email is missing
             to: sellerEmail,   // Recipient email (seller's email)
             subject: subject,
-            text: `You have a new message from ${senderName} (${senderEmail}):\n\n${message}`,
+            text: emailContent.trim(),
         };
 
         // Send the email
@@ -80,6 +100,7 @@ app.post("/api/send-email", async (req, res) => {
         res.status(500).json({ error: 'Failed to send email.' });
     }
 });
+
 
 
 
@@ -392,7 +413,6 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
     });
 });
 
-const bcrypt = require('bcryptjs');
 
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
@@ -432,48 +452,145 @@ app.post('/signup', (req, res) => {
 });
 
 
-// POST endpoint to handle login and generate JWT token
+// Import necessary modules
+
+
+
+
+// POST endpoint to handle login and generate JWT tokens
 app.post('/signin', (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: "Email and password are required" });
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  const query = 'SELECT * FROM users WHERE email = ?';
+  db.execute(query, [email], (err, results) => {
+    if (err) {
+      console.error("Error fetching user:", err.message);
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
 
-    const query = 'SELECT * FROM users WHERE email = ?';
-    db.execute(query, [email], (err, results) => {
-        if (err) {
-            console.error("Error fetching user:", err.message);
-            return res.status(500).json({ error: 'Internal Server Error' });
+    if (results.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const user = results[0];
+
+    bcrypt.compare(password, user.password, (err, match) => {
+      if (err) {
+        console.error("Error comparing passwords:", err.message);
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+
+      if (!match) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      const accessToken = jwt.sign(
+        { userId: user.id, email: user.email, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId: user.id },
+        process.env.JWT_SECRET, // Use the same secret for refresh token
+        { expiresIn: '7d' }
+      );
+
+      // Log tokens for debugging
+      console.log("Access Token:", accessToken);
+      console.log("Refresh Token:", refreshToken);
+
+      res.status(200).json({
+        message: "Login successful",
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          profilePic: user.profile_picture,
         }
-
-        if (results.length === 0) {
-            return res.status(401).json({ error: "Invalid email or password" });
-        }
-
-        const user = results[0];
-
-        // Use bcrypt.compare to compare the plain password with the hashed password
-        bcrypt.compare(password, user.password, (err, match) => {
-            if (err) {
-                console.error("Error comparing passwords:", err.message);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-
-            if (!match) {
-                return res.status(401).json({ error: "Invalid email or password" });
-            }
-
-            // Extract the username from the email (everything before the '@')
-            const username = email.split('@')[0];
-
-            // Generate JWT token after successful password match
-            const token = jwt.sign({ userId: user.id, email: user.email, username }, JWT_SECRET, { expiresIn: '1h' });
-
-            // Return the token and the username to the client
-            res.status(200).json({ message: "Login successful", token, user: { email: user.email, username } });
-        });
+      });
     });
+  });
+});
+
+const authenticateUser = (req, res, next) => {
+  
+
+  const authHeader = req.headers.authorization;
+
+  console.log("Request Headers:", req.headers);
+
+  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader === 'Bearer null') {
+    console.error("Authorization header missing or malformed");
+    return res.status(401).json({ error: "Unauthorized: No token provided or invalid token" });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  console.log("Received Token in Middleware:", token);
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.error("JWT verification failed:", err.message);
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    console.log("Decoded Token in Middleware:", decoded);
+
+    req.userId = decoded.userId;
+    next();
+  });
+};
+
+
+
+
+
+// POST endpoint to refresh the access token using a refresh token
+app.post('/refresh-token', (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ error: "Refresh token is required" });
+  }
+
+  // Verify the refresh token
+  jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => { // Use the same secret for verification
+    if (err) {
+      console.error("Invalid or expired refresh token:", err.message);
+      return res.status(401).json({ error: "Invalid or expired refresh token" });
+    }
+
+    // Check if the refresh token exists in the database (optional but recommended)
+    const query = 'SELECT * FROM users WHERE id = ? AND refresh_token = ?';
+    db.execute(query, [decoded.userId, refreshToken], (err, results) => {
+      if (err) {
+        console.error("Error checking refresh token:", err.message);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+
+      if (results.length === 0) {
+        return res.status(401).json({ error: "Invalid refresh token" });
+      }
+
+      // Generate a new access token
+      const newAccessToken = jwt.sign(
+        { userId: decoded.userId },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      res.status(200).json({
+        accessToken: newAccessToken,
+      });
+    });
+  });
 });
 
 
@@ -481,62 +598,275 @@ app.post('/signin', (req, res) => {
 
 
 
+// POST endpoint for user logout (invalidate refresh token)
+app.post('/logout', authenticateUser, (req, res) => {
+  const userId = req.userId;
 
-// POST endpoint to handle password change
-app.post('/change-password', (req, res) => {
-    const { email, currentPassword, newPassword } = req.body;
-
-    if (!email || !currentPassword || !newPassword) {
-        return res.status(400).json({ error: "Email, current password, and new password are required" });
+  // Invalidate the refresh token by setting it to null in the database
+  const query = 'UPDATE users SET refresh_token = NULL WHERE id = ?';
+  db.execute(query, [userId], (err) => {
+    if (err) {
+      console.error("Error logging out user:", err.message);
+      return res.status(500).json({ error: "Failed to log out" });
     }
 
-    // Step 1: Find the user by email
-    const query = 'SELECT * FROM users WHERE email = ?';
-    db.execute(query, [email], (err, results) => {
-        if (err) {
-            console.error("Error fetching user:", err.message);
-            return res.status(500).json({ error: 'Internal Server Error' });
-        }
-
-        if (results.length === 0) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        const user = results[0];
-
-        // Step 2: Verify current password using bcrypt
-        bcrypt.compare(currentPassword, user.password, (err, isMatch) => {
-            if (err) {
-                console.error("Error comparing passwords:", err.message);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-
-            if (!isMatch) {
-                return res.status(401).json({ error: "Current password is incorrect" });
-            }
-
-            // Step 3: Hash the new password
-            bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
-                if (err) {
-                    console.error("Error hashing new password:", err.message);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-
-                // Step 4: Update the password in the database
-                const updateQuery = 'UPDATE users SET password = ? WHERE email = ?';
-                db.execute(updateQuery, [hashedPassword, email], (err, results) => {
-                    if (err) {
-                        console.error("Error updating password:", err.message);
-                        return res.status(500).json({ error: 'Internal Server Error' });
-                    }
-
-                    // Step 5: Respond with success message
-                    res.status(200).json({ message: "Password changed successfully" });
-                });
-            });
-        });
-    });
+    res.status(200).json({ message: "Logged out successfully" });
+  });
 });
+
+
+// Update user settings
+app.put('/api/settings', authenticateUser, upload.single('profilePicture'), async (req, res) => {
+  const { email, username, password, preferences } = req.body;
+  const userId = req.userId; // Extracted from the authentication token
+
+  if (!userId) {
+    return res.status(400).json({ error: "Authentication failed. User ID is missing." });
+  }
+
+  try {
+    const updates = [];
+    const params = [];
+
+    // Validate and update email
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Invalid email format." });
+      }
+      updates.push("email = ?");
+      params.push(email);
+    }
+
+    // Validate and update username
+    if (username) {
+      if (username.trim().length < 3) {
+        return res.status(400).json({ error: "Username must be at least 3 characters long." });
+      }
+      updates.push("username = ?");
+      params.push(username);
+    }
+
+    // Hash and update password
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push("password = ?");
+      params.push(hashedPassword);
+    }
+
+    // Update preferences (stored as JSON)
+    if (preferences) {
+      updates.push("preferences = ?");
+      params.push(JSON.stringify(preferences));
+    }
+
+    // Update profile picture path
+    if (req.file) {
+      const profilePicturePath = req.file.filename; // Save only the filename
+      updates.push("profile_picture = ?");
+      params.push(profilePicturePath);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update." });
+    }
+
+    const query = `UPDATE users SET ${updates.join(", ")} WHERE id = ?`;
+    params.push(userId);
+
+    db.execute(query, params, (err) => {
+      if (err) {
+        console.error("Error updating user settings:", err.message);
+        return res.status(500).json({ error: "Failed to update settings. Please try again later." });
+      }
+
+      const response = {
+        message: "Settings updated successfully",
+        ...(email && { email }),
+        ...(username && { username }),
+        ...(preferences && { preferences: JSON.parse(preferences) }),
+        ...(req.file && { profile_picture: `http://localhost:5000/uploads/${req.file.filename}` }),
+      };
+
+      res.status(200).json(response);
+    });
+  } catch (err) {
+    console.error("Unexpected error:", err.message);
+    res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+  }
+});
+
+// Fetch user settings
+app.get('/api/settings', authenticateUser, async (req, res) => {
+  const userId = req.userId; // Extracted from the authentication token
+
+  if (!userId) {
+    console.warn("Token decoded but userId is missing.");
+    return res.status(400).json({ success: false, error: "Invalid token. Please log in again." });
+  }
+
+  try {
+    const query = "SELECT email, username, preferences, profile_picture FROM users WHERE id = ?";
+    db.execute(query, [userId], (err, results) => {
+      if (err) {
+        console.error(`Database error [${err.code}]: ${err.message}`);
+        return res.status(500).json({ success: false, error: "Failed to fetch user settings." });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ success: false, error: "User not found." });
+      }
+
+      const user = results[0];
+      user.preferences = user.preferences ? JSON.parse(user.preferences) : null;
+
+      const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+      user.profile_picture = user.profile_picture
+        ? `${baseUrl}/uploads/${user.profile_picture}`
+        : `${baseUrl}/uploads/default-avatar.png`;
+
+      res.status(200).json({ success: true, ...user });
+    });
+  } catch (err) {
+    console.error("Unexpected error:", err.message);
+    res.status(500).json({ success: false, error: "An unexpected error occurred. Please try again." });
+  }
+});
+
+
+app.put('/api/settings/change-password', authenticateUser, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.userId; // Extracted from the authentication token
+
+  if (!userId) {
+    return res.status(400).json({ error: "Authentication failed. User ID is missing." });
+  }
+
+  try {
+    // Retrieve the user from the database
+    const query = 'SELECT password FROM users WHERE id = ?';
+    db.execute(query, [userId], async (err, results) => {
+      if (err) {
+        console.error('Error fetching user:', err.message);
+        return res.status(500).json({ error: "Failed to fetch user." });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      const user = results[0];
+      const match = await bcrypt.compare(currentPassword, user.password);
+
+      if (!match) {
+        return res.status(400).json({ error: "Current password is incorrect." });
+      }
+
+      // Hash the new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update the password in the database
+      const updateQuery = 'UPDATE users SET password = ? WHERE id = ?';
+      db.execute(updateQuery, [hashedNewPassword, userId], (updateErr, updateResults) => {
+        if (updateErr) {
+          console.error('Error updating password:', updateErr.message);
+          return res.status(500).json({ error: "Failed to update password." });
+        }
+
+        res.status(200).json({ message: 'Password updated successfully!' });
+      });
+    });
+  } catch (error) {
+    console.error('Unexpected error:', error.message);
+    res.status(500).json({ error: "An unexpected error occurred." });
+  }
+});
+
+  
+
+
+// Update Listing API
+app.put("/api/update-listing/:id", upload.array("images", 10), (req, res) => {
+  const listingId = req.params.id; // Get the listing ID from the URL
+  const {
+      title, description, category, price, quantity, location,
+      additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
+  } = req.body;
+
+  const images = req.files ? req.files.map(file => file.filename) : [];
+
+  const updatedListingData = {
+      title: title || null,
+      description: description || null,
+      category: category || null,
+      price: price || null,
+      quantity: quantity || null,
+      location: location || null,
+      additionalInfo: additionalInfo || null,
+      sellerName: sellerName || null,
+      sellerEmail: sellerEmail || null,
+      sellerPhone: sellerPhone || null,
+      sellerAddress: sellerAddress || null,
+      age: age || null,
+      sex: sex || null,
+  };
+
+  // Validate required fields
+  if (!updatedListingData.title || !updatedListingData.description || !updatedListingData.category || !updatedListingData.price || !updatedListingData.location || !updatedListingData.sellerName || !updatedListingData.sellerEmail) {
+      return res.status(400).json({ error: "Required fields are missing" });
+  }
+
+  // If there are new images, we will update the images field
+  let imagePaths = [];
+  if (images.length > 0) {
+      imagePaths = JSON.stringify(images); // Save as JSON string
+  }
+
+  // First, check if the listing exists
+  const checkListingQuery = 'SELECT * FROM listings WHERE id = ?';
+  db.execute(checkListingQuery, [listingId], (err, result) => {
+      if (err) {
+          console.error('Error checking listing:', err.message);
+          return res.status(500).json({ error: 'Failed to check listing' });
+      }
+
+      if (result.length === 0) {
+          return res.status(404).json({ error: 'Listing not found' });
+      }
+
+      // Update the listing in the database
+      const updateQuery = `
+          UPDATE listings
+          SET title = ?, description = ?, category = ?, price = ?, quantity = ?, location = ?, additionalInfo = ?, sellerName = ?, sellerEmail = ?, sellerPhone = ?, sellerAddress = ?, age = ?, sex = ?, images = ?
+          WHERE id = ?
+      `;
+
+      db.execute(updateQuery, [
+          updatedListingData.title,
+          updatedListingData.description,
+          updatedListingData.category,
+          updatedListingData.price,
+          updatedListingData.quantity,
+          updatedListingData.location,
+          updatedListingData.additionalInfo,
+          updatedListingData.sellerName,
+          updatedListingData.sellerEmail,
+          updatedListingData.sellerPhone,
+          updatedListingData.sellerAddress,
+          updatedListingData.age,
+          updatedListingData.sex,
+          imagePaths.length > 0 ? imagePaths : result[0].images, // Keep existing images if none are uploaded
+          listingId
+      ], (err, result) => {
+          if (err) {
+              console.error('Error updating listing:', err.message);
+              return res.status(500).json({ error: 'Failed to update listing' });
+          }
+          res.status(200).json({ message: 'Listing updated successfully' });
+      });
+  });
+});
+
 
 
 

@@ -1,110 +1,102 @@
 import { useState } from 'react';
 import axios from 'axios';
+import PropTypes from 'prop-types'; // Import PropTypes
 
-const ChangePassword = () => {
+const ChangePassword = ({ onSuccess }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // 'success' or 'error'
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-
+  const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      setMessage('Passwords do not match');
-      setMessageType('error');
+      setError('New passwords do not match.');
       return;
     }
+    setError('');
+    setLoading(true);
 
     try {
-      const token = localStorage.getItem('token'); // Ensure the user is logged in
+      const jwtToken = localStorage.getItem('accessToken');
+      if (!jwtToken || jwtToken === 'null') {
+        alert('You are not logged in. Please sign in again.');
+        return;
+      }
 
-      const response = await axios.post(
-        '/api/change-password',
+      const response = await axios.put(
+        'http://localhost:5000/api/settings/change-password',
         { currentPassword, newPassword },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }
       );
-      setMessage(response.data.message);
-      setMessageType('success');
-    } catch (error) {
-      if (error.response) {
-        // Server responded with a status code outside 2xx
-        setMessage(error.response.data.error || 'Server error occurred.');
-      } else if (error.request) {
-        // No response received
-        setMessage('No response from the server. Please try again later.');
+
+      if (response.status === 200) {
+        onSuccess();
       } else {
-        // Error setting up the request
-        setMessage('Error setting up the request. Please try again.');
+        setError('Failed to change password. Please try again.');
       }
-      setMessageType('error');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setError('An error occurred while changing the password. Please try again later.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 max-w-lg mx-auto">
-      <h2 className="text-3xl font-bold text-brown mb-6 text-center">Change Password</h2>
-      <form className="space-y-6" onSubmit={handlePasswordChange}>
-        <div>
-          <label className="block text-gray-700 font-medium mb-2">
-            Current Password
-          </label>
-          <input
-            type="password"
-            placeholder="Enter current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            className="w-full p-3 border rounded-md shadow-sm focus:ring-[#ff5100] focus:border-[#ff5100] text-gray-700"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-2">
-            New Password
-          </label>
-          <input
-            type="password"
-            placeholder="Enter new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            className="w-full p-3 border rounded-md shadow-sm focus:ring-[#ff5100] focus:border-[#ff5100] text-gray-700"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-2">
-            Confirm New Password
-          </label>
-          <input
-            type="password"
-            placeholder="Re-enter new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            className="w-full p-3 border rounded-md shadow-sm focus:ring-[#ff5100] focus:border-[#ff5100] text-gray-700"
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-[#ff5100] text-white py-3 px-4 rounded-md hover:bg-[#e04a00] transition duration-200 font-bold"
-        >
-          Change Password
-        </button>
-      </form>
-      {message && (
-        <p
-          className={`mt-4 text-center text-sm font-medium ${
-            messageType === 'success' ? 'text-green-600' : 'text-red-600'
-          }`}
-        >
-          {message}
-        </p>
-      )}
+    <div className="space-y-6">
+      {error && <p className="text-red-600">{error}</p>}
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700">Current Password</label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700">New Password</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700">Confirm New Password</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg"
+        />
+      </div>
+
+      <button
+        onClick={handleChangePassword}
+        className={`w-full py-3 bg-[#ff5100] text-white rounded-lg ${
+          loading ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+        disabled={loading}
+      >
+        {loading ? 'Changing...' : 'Change Password'}
+      </button>
     </div>
   );
+};
+
+// PropTypes validation
+ChangePassword.propTypes = {
+  onSuccess: PropTypes.func.isRequired, // Ensure onSuccess is passed as a function
 };
 
 export default ChangePassword;

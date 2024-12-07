@@ -16,12 +16,19 @@ const ListingDetail = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [emailData, setEmailData] = useState({
-    subject: `Inquiry about ${listing?.title || "Item"}`,
+    subject: "",
     message: "",
   });
   const [emailStatus, setEmailStatus] = useState(""); // State for email status
 
-
+  useEffect(() => {
+    if (listing) {
+      setEmailData({
+        subject: `Inquiry about ${listing.title}`,
+        message: "",
+      });
+    }
+  }, [listing]);
 
   // Advertisement messages
   const adMessages = [
@@ -86,52 +93,42 @@ const ListingDetail = () => {
   
   // In the email submit function
   const handleEmailSubmit = async (e) => {
-      e.preventDefault();
+    e.preventDefault();
   
-      // Log user details to verify the correct email is being used
-      // console.log("User details:", user);
+    const animalDetailsSentence = `I am inquiring about the following livestock: ${listing.title}, ${listing.age} years old, ${listing.sex}. Located at ${listing.location}. Additional info: ${listing.additionalInfo || "None provided"}.`;
+    const fullMessage = `${animalDetailsSentence}\n\n${emailData.message}`;
   
-      // Log email data before sending to backend
-      // console.log("Email data being sent:", {
-      //     sellerEmail: listing.sellerEmail,  // Recipient's email
-      //     subject: emailData.subject,        // Subject of the email
-      //     message: emailData.message,        // Message content
-      //     senderName: user?.username || "Anonymous", // User's name or fallback
-      //     senderEmail: user?.email || "no-reply@example.com", // User's email or fallback
-      // });
+    try {
+      const response = await fetch('http://localhost:5000/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sellerEmail: listing.sellerEmail,
+          subject: emailData.subject,
+          message: fullMessage,
+          senderName: user?.username || "Anonymous",
+          senderEmail: user?.email || "no-reply@example.com",
+        }),
+      });
   
-      try {
-          const response = await fetch('http://localhost:5000/api/send-email', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                  sellerEmail: listing.sellerEmail, // recipient's email
-                  subject: emailData.subject,
-                  message: emailData.message,
-                  senderName: user?.username || "Anonymous", // fallback name
-                  senderEmail: user?.email || "no-reply@example.com", // fallback email
-              }),
-          });
-  
-          const data = await response.json();
-          if (response.ok) {
-              setEmailStatus("Email sent successfully!");
-              toast.success('Email sent successfully! ✔️', { position: "top-center", autoClose: 5000 }); // Show success toast
-              handleCloseEmailForm();
-              
-          } else {
-              setEmailStatus(data.error || "Failed to send email");
-              toast.error(data.error || 'Failed to send email 😞', { position: "top-center", autoClose: 5000 }); // Show error toast
-            
-          }
-      } catch (error) {
-          console.error("Error in API request:", error);
-          setEmailStatus("Error sending email");
-          toast.error('Error sending email 😞', { position: "top-center", autoClose: 5000 }); // Show error toast
+      const data = await response.json();
+      if (response.ok) {
+        toast.success('Email sent successfully! ✔️', { position: "top-center", autoClose: 5000 });
+         setEmailStatus('Email sent successfully! ✔️'); // Update email status to success
+        setEmailData({ subject: `Inquiry about ${listing.title}`, message: "" }); // Reset form
+        handleCloseEmailForm(); // Close the modal
+      } else {
+        toast.error(data.error || 'Failed to send email 😞', { position: "top-center", autoClose: 5000 });
       }
+    } catch (error) {
+      console.error("Error in API request:", error);
+      toast.error('Error sending email 😞', { position: "top-center", autoClose: 5000 });
+    }
   };
+  
+  
   
 
 
@@ -200,6 +197,9 @@ const ListingDetail = () => {
           <div className="text-lg text-gray-900">
             <p>
               <span className="font-bold">Price:</span> Kshs {listing.price}
+            </p>
+            <p>
+              <span className="font-bold">Quantity:</span> {listing.quantity}
             </p>
             <p>
               <span className="font-bold">Location:</span> {listing.location}

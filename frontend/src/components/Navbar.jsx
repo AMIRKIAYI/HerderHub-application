@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import SignUp from './SignUp';
 import SignIn from './SignIn';
 
+
 function Navbar({ data, onFilter }) {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isLoginMenuOpen, setLoginMenuOpen] = useState(false);
