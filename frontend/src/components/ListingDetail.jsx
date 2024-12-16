@@ -15,6 +15,8 @@ const ListingDetail = () => {
   const [error, setError] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showMessageForm, setShowMessageForm] = useState(false); // State for message form
+  const [messageData, setMessageData] = useState({ message: "" }); // State for message form data
   const [emailData, setEmailData] = useState({
     subject: "",
     message: "",
@@ -129,8 +131,74 @@ const ListingDetail = () => {
   };
   
   
-  
+  const handleMessageClick = () => {
+    setShowMessageForm(true); // Show the message form
+  };
 
+  const handleCloseMessageForm = () => {
+    setShowMessageForm(false); // Hide the message form
+  };
+
+  const handleMessageSubmit = async (e) => {
+    e.preventDefault();
+  
+    // Safety check for missing seller name or email
+    if (!listing.sellerEmail) {
+      toast.error('Seller email is missing.');
+      return;
+    }
+  
+    // Safety check for empty message
+    if (!messageData.message.trim()) {
+      toast.error('Please enter a message.');
+      return;
+    }
+  
+    // Construct the message with listing details
+    const animalDetailsSentence = `I am inquiring about the following livestock: ${listing.title}, ${listing.age} years old, ${listing.sex}. Located at ${listing.location}. Additional info: ${listing.additionalInfo || "None provided"}.`;
+    const fullMessage = `${animalDetailsSentence}\n\n${messageData.message}`;
+  
+    console.log('Submitting message:', { fullMessage, recipient: listing.sellerEmail });
+  
+    try {
+      // Retrieve the JWT token from local storage or state
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('You must be logged in to send a message.');
+        return;
+      }
+  
+      const response = await fetch('http://localhost:5000/api/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`, // Include the token here
+        },
+        body: JSON.stringify({
+          recipient: listing.sellerEmail, // Use the seller's email as recipient
+          messageText: fullMessage, // Adjusted to match backend field naming
+        }),
+      });
+  
+      const data = await response.json();
+      console.log('Response from API:', data);
+  
+      if (response.ok) {
+        toast.success('Message sent successfully!');
+        setMessageData({ message: "" });
+        handleCloseMessageForm();
+      } else {
+        toast.error(data.error || 'Failed to send message.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Error sending message.');
+    }
+  };
+  
+  
+  
+  
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -138,6 +206,10 @@ const ListingDetail = () => {
       ...prevData,
       [name]: value,
     }));
+  };
+  const handleMessageInputChange = (e) => {
+    const { name, value } = e.target;
+    setMessageData((prevData) => ({ ...prevData, [name]: value }));
   };
 
   if (loading) {
@@ -241,6 +313,7 @@ const ListingDetail = () => {
               </button>
               <button
                 className="flex items-center justify-center px-4 py-2 text-sm bg-brown text-white rounded-lg shadow-md hover:bg-brown-600 transition-all focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                onClick={handleMessageClick}
               >
                 <FontAwesomeIcon icon={faComment} className="mr-2" />
                 Leave a Message
@@ -311,6 +384,43 @@ const ListingDetail = () => {
           </div>
         </div>
       )}
+
+{showMessageForm && (
+  <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+      <h3 className="text-xl font-semibold text-gray-900 mb-4">Send a Message</h3>
+      <form onSubmit={handleMessageSubmit}>
+        <div className="mb-4">
+          <label htmlFor="message" className="block text-gray-700">Message</label>
+          <textarea
+            id="message"
+            name="message"
+            className="w-full p-2 border border-gray-300 rounded-lg"
+            rows="5"
+            value={messageData.message}
+            onChange={handleMessageInputChange}
+          />
+        </div>
+        <div className="flex justify-between">
+          <button
+            type="button"
+            className="bg-gray-300 px-4 py-2 rounded-lg"
+            onClick={handleCloseMessageForm}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+          >
+            Send Message
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
        <ToastContainer /> {/* ToastContainer is required to display toast notifications */}
     </div>
   );

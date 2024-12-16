@@ -12,7 +12,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
-
+const router = express.Router();
 
 
 
@@ -22,6 +22,9 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
 app.use(express.json());
+// Mount the router
+app.use('/api', router);
+
 
 // Middleware for parsing request bodies
 app.use(bodyParser.json());
@@ -544,6 +547,7 @@ const authenticateUser = (req, res, next) => {
     console.log("Decoded Token in Middleware:", decoded);
 
     req.userId = decoded.userId;
+    req.userEmail = decoded.email;  // Save the email from the decoded token
     next();
   });
 };
@@ -866,6 +870,68 @@ app.put("/api/update-listing/:id", upload.array("images", 10), (req, res) => {
       });
   });
 });
+
+app.post('/api/send-message', authenticateUser, (req, res) => {
+  const { recipient, messageText } = req.body;
+  const senderEmail = req.userEmail;  // Use req.userEmail instead of req.email
+
+  // Log incoming data for debugging
+  console.log("Received message request:");
+  console.log("Recipient email:", recipient);
+  console.log("Message text:", messageText);
+  console.log("Sender email:", senderEmail);
+
+  if (!recipient || !messageText) {
+    return res.status(400).json({ error: 'Recipient and message are required' });
+  }
+
+  // Verify recipient email exists in the database
+  const query = 'SELECT email FROM users WHERE email = ?';
+  db.execute(query, [recipient.trim()], (err, results) => {
+    if (err) {
+      console.error("Error fetching recipient email:", err.message);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (results.length === 0) {
+      console.error("Recipient not found:", recipient);
+      return res.status(404).json({ error: 'Recipient not found' });
+    }
+
+    // Insert message into the database
+    const messageQuery = `
+      INSERT INTO messages (recipient, messageText, senderEmail, receiverEmail)
+      VALUES (?, ?, ?, ?)
+    `;
+    db.execute(messageQuery, [recipient, messageText, senderEmail, recipient], (err, result) => {
+      if (err) {
+        console.error("Error inserting message into database:", err.message);
+        return res.status(500).json({ error: 'Error inserting message' });
+      }
+
+      res.status(200).json({ message: 'Message sent successfully' });
+    });
+  });
+});
+
+// Endpoint to fetch messages for the logged-in user where the user is the recipient
+app.get('/api/messages', authenticateUser, (req, res) => {
+  const userEmail = req.userEmail; // Get the user's email from the JWT token
+
+  // Query to fetch messages where the logged-in user is the recipient
+  const query = 'SELECT * FROM messages WHERE recipient = ?';
+  
+  db.execute(query, [userEmail], (err, results) => {
+    if (err) {
+      console.error("Error fetching messages:", err.message);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    res.status(200).json({ messages: results }); // Send the messages as a response
+  });
+});
+
+
 
 
 

@@ -15,7 +15,7 @@ function LatestListings() {
       try {
         setLoading(true);
         const response = await axios.get("http://localhost:5000/api/latest-listings?page=1");
-        console.log("API Response:", response.data); // Debug
+        // console.log("API Response:", response.data); // Debug
         if (response.data && response.data.length > 0) {
           setListings(response.data);
         } else {
