@@ -940,6 +940,8 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Starting the server
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
+const PORT = process.env.PORT || 5000;  // Use Railway-assigned port
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
 });
+
