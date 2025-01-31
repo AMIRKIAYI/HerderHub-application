@@ -20,8 +20,8 @@ const router = express.Router();
 
 
 const app = express();
-// app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
-// app.use(express.json());
+app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
+app.use(express.json());
 // Mount the router
 app.use('/api', router);
 
@@ -30,36 +30,27 @@ app.use('/api', router);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const PORT = process.env.PORT;
-
-// ✅ Enable CORS for frontend requests
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(express.json());
-
-// ✅ MySQL Database Connection (Using Railway Variables)
+// MySQL2 database connection
 const db = mysql.createConnection({
-    host: process.env.MYSQLHOST,       // Railway MySQL host
-    user: process.env.MYSQLUSER,       // Railway MySQL user
-    password: process.env.MYSQLPASSWORD, // Railway MySQL password
-    database: process.env.MYSQLDATABASE, // Railway MySQL database
-    port: process.env.MYSQLPORT || 3306 // Default MySQL port
+    host: process.env.DB_HOST,       // Database host
+    user: process.env.DB_USER,       // MySQL username
+    password: process.env.DB_PASSWORD, // MySQL password
+    database: process.env.DB_NAME    // Database name
 });
 
-// ✅ Test the database connection
+// Test the connection
 db.connect(err => {
     if (err) {
-        console.error("❌ Error connecting to MySQL:", err.message);
+        console.error("Error connecting to the database:", err.message);
         return;
     }
-    console.log("✅ Connected to the MySQL database!");
+    console.log("Connected to the MySQL database.");
 });
 
-// ✅ Secret key for JWT token
+// Secret key for JWT token
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-app.get("/", (req, res) => {
-    res.send("Backend is running with MySQL connection!");
-});
+
 
 
 app.post("/api/send-email", async (req, res) => {
@@ -949,6 +940,6 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Starting the server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.listen(5000, () => {
+    console.log("Server running on port 5000");
 });
