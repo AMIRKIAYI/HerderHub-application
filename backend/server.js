@@ -26,7 +26,7 @@ app.use(express.json());
 // Mount the router
 app.use('/api', router);
 
-
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 // Middleware for parsing request bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -418,8 +418,8 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
     });
 });
 
-app.get("/", (req, res) => {
-  res.send("🚀 Backend is running with MySQL connection!");
+app.get('/', (req, res) => {
+  res.send('Welcome to the HerderHub API!');
 });
 
 app.post('/signup', (req, res) => {
