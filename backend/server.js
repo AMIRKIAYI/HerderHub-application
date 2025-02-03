@@ -418,6 +418,9 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
     });
 });
 
+app.get("/", (req, res) => {
+  res.send("🚀 Backend is running with MySQL connection!");
+});
 
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
