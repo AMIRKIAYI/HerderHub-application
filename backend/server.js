@@ -422,7 +422,7 @@ app.get('/', (req, res) => {
   res.send('Welcome to the HerderHub API!');
 });
 
-app.post('https://herderhub-application-production.up.railway.app/signup', (req, res) => {
+app.post('/signup', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -466,7 +466,7 @@ app.post('https://herderhub-application-production.up.railway.app/signup', (req,
 
 
 // POST endpoint to handle login and generate JWT tokens
-app.post('https://herderhub-application-production.up.railway.app/signin', (req, res) => {
+app.post('/signin', (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
