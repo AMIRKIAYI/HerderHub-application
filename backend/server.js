@@ -20,7 +20,8 @@ const router = express.Router();
 
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
+// CORS configuration
+app.use(cors({ origin: process.env.CORS_ORIGIN }));
 app.use(express.json());
 // Mount the router
 app.use('/api', router);
@@ -32,10 +33,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // MySQL2 database connection
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,       // Database host
-    user: process.env.DB_USER,       // MySQL username
-    password: process.env.DB_PASSWORD, // MySQL password
-    database: process.env.DB_NAME    // Database name
+  host: process.env.MYSQLHOST,       // Database host
+  user: process.env.MYSQLUSER,       // MySQL username
+  password: process.env.MYSQLPASSWORD, // MySQL password
+  database: process.env.MYSQLDATABASE, // Database name
+  port: process.env.MYSQLPORT || 3306, // MySQL port
 });
 
 // Test the connection
@@ -296,7 +298,7 @@ app.get('/api/latest-listings', (req, res) => {
   
         // Directly use imagesArray as it's already an array
         if (Array.isArray(listing.images) && listing.images.length > 0) {
-          image = `http://localhost:5000/uploads/${listing.images[0]}`; // Use the first image
+          image = `${process.env.RAILWAY_PUBLIC_DOMAIN}/uploads/${listing.images[0]}`; // Use the first image
         } else {
           image = "https://via.placeholder.com/300"; // Fallback image
         }
@@ -724,7 +726,7 @@ app.get('/api/settings', authenticateUser, async (req, res) => {
       const user = results[0];
       user.preferences = user.preferences ? JSON.parse(user.preferences) : null;
 
-      const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN || "http://localhost:5000";
       user.profile_picture = user.profile_picture
         ? `${baseUrl}/uploads/${user.profile_picture}`
         : `${baseUrl}/uploads/default-avatar.png`;
@@ -940,6 +942,8 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Starting the server
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
+// Server port
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
