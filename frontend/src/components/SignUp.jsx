@@ -32,7 +32,7 @@ function SignUp({ onClose, onSignInClick }) {
   };
 
 
-  const API_BASE_URL = "https://herderhub-application-production.up.railway.app/api";
+  
   const handleSubmit = (event) => {
     event.preventDefault();
     
@@ -52,7 +52,7 @@ function SignUp({ onClose, onSignInClick }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      axios.post(`${API_BASE_URL}/signup`, trimmedValues)
+      axios.post('https://herderhub-application-production.up.railway.app/signup', trimmedValues)
         .then(() => {
           console.log("User successfully registered!");
           alert("Signup successful! Redirecting to login...");
