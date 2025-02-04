@@ -30,11 +30,9 @@ function SignUp({ onClose, onSignInClick }) {
     setValues((prev) => ({ ...prev, [name]: value }));
     setServerError("");  // Clear server error when user starts typing again
   };
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; // Use local URL by default
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-
-  
+ 
   
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -55,7 +53,7 @@ function SignUp({ onClose, onSignInClick }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      axios.post(`${API_BASE_URL}/signup`, trimmedValues)
+      axios.post(`${API_URL}/signup`, trimmedValues)
         .then(() => {
           console.log("User successfully registered!");
           alert("Signup successful! Redirecting to login...");
