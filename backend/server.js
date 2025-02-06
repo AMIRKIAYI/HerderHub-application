@@ -21,7 +21,16 @@ const router = express.Router();
 
 const app = express();
 // CORS configuration
-app.use(cors({ origin: process.env.CORS_ORIGIN }));
+// app.use(cors({ origin: process.env.CORS_ORIGIN }));
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN,  // Allow frontend domain from environment variable
+  methods: 'GET,POST,PUT,DELETE',   // Allow these methods for CORS requests
+  credentials: true,                // Allow credentials like cookies (optional)
+};
+// Use CORS middleware with the options
+app.use(cors(corsOptions));
 app.use(express.json());
 // Mount the router
 app.use('/api', router);
@@ -423,42 +432,40 @@ app.get('/', (req, res) => {
 });
 
 app.post('/signup', (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-  }
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+    }
 
-  console.log("🔹 Received signup request:", { email, password });
+    // Hash the password before saving to the database
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            console.error("Error hashing password:", err.message);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
 
-  bcrypt.hash(password, 10, (err, hashedPassword) => {
-      if (err) {
-          console.error("❌ Error hashing password:", err.message);
-          return res.status(500).json({ error: 'Internal Server Error' });
-      }
+        const checkQuery = 'SELECT * FROM users WHERE email = ?';
+        db.execute(checkQuery, [email], (err, results) => {
+            if (err) {
+                console.error("Error checking for existing user:", err.message);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
 
-      const checkQuery = 'SELECT * FROM users WHERE email = ?';
-      db.execute(checkQuery, [email], (err, results) => {
-          if (err) {
-              console.error("❌ Error checking user:", err.message);
-              return res.status(500).json({ error: 'Internal Server Error' });
-          }
+            if (results.length > 0) {
+                return res.status(409).json({ error: "An account with this email already exists" });
+            }
 
-          if (results.length > 0) {
-              return res.status(409).json({ error: "An account with this email already exists" });
-          }
-
-          const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
-          db.execute(insertQuery, [email, hashedPassword], (err, results) => {
-              if (err) {
-                  console.error("❌ Error inserting user:", err.message);
-                  return res.status(500).json({ error: 'Internal Server Error' });
-              }
-              console.log("✅ User created successfully:", results);
-              res.status(201).json({ message: 'User created successfully', userId: results.insertId });
-          });
-      });
-  });
+            const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
+            db.execute(insertQuery, [email, hashedPassword], (err, results) => {
+                if (err) {
+                    console.error("Error inserting data:", err.message);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+                res.status(201).json({ message: 'User created successfully', userId: results.insertId });
+            });
+        });
+    });
 });
 
 
