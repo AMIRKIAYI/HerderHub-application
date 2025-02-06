@@ -35,6 +35,7 @@ function SignUp({ onClose, onSignInClick }) {
  
   
   const handleSubmit = (event) => {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';  // Fallback for local dev
     event.preventDefault();
     
     // Trim values to avoid trailing/leading spaces
@@ -53,7 +54,7 @@ function SignUp({ onClose, onSignInClick }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      axios.post(`https://herderhub-application-production.up.railway.app/signup`, trimmedValues)
+      axios.post(`${apiUrl}/signup`, trimmedValues)
         .then(() => {
           console.log("User successfully registered!");
           alert("Signup successful! Redirecting to login...");
