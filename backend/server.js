@@ -24,13 +24,12 @@ const app = express();
 // app.use(cors({ origin: process.env.CORS_ORIGIN }));
 
 // CORS configuration
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN,  // Allow frontend domain from environment variable
-  methods: 'GET,POST,PUT,DELETE',   // Allow these methods for CORS requests
-  credentials: true,                // Allow credentials like cookies (optional)
-};
-// Use CORS middleware with the options
-app.use(cors(corsOptions));
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'https://herder-hub-application.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 // Mount the router
 app.use('/api', router);
