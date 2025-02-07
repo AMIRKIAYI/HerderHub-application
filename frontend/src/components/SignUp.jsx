@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import SignUpValidation from './SignUpValidation';
@@ -31,11 +32,7 @@ function SignUp({ onClose, onSignInClick }) {
     setServerError("");  // Clear server error when user starts typing again
   };
 
-
- 
-  
   const handleSubmit = (event) => {
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';  // Fallback for local dev
     event.preventDefault();
     
     // Trim values to avoid trailing/leading spaces
@@ -54,7 +51,7 @@ function SignUp({ onClose, onSignInClick }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      axios.post(`${apiUrl}/signup`, trimmedValues)
+      axios.post('http://localhost:5000/signup', trimmedValues)
         .then(() => {
           console.log("User successfully registered!");
           alert("Signup successful! Redirecting to login...");

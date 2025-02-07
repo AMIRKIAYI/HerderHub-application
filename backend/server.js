@@ -20,32 +20,22 @@ const router = express.Router();
 
 
 const app = express();
-// CORS configuration
-// app.use(cors({ origin: process.env.CORS_ORIGIN }));
-
-// CORS configuration
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'https://herder-hub-application.vercel.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
 app.use(express.json());
 // Mount the router
 app.use('/api', router);
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+
 // Middleware for parsing request bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // MySQL2 database connection
 const db = mysql.createConnection({
-  host: process.env.MYSQLHOST,       // Database host
-  user: process.env.MYSQLUSER,       // MySQL username
-  password: process.env.MYSQLPASSWORD, // MySQL password
-  database: process.env.MYSQLDATABASE, // Database name
-  port: process.env.MYSQLPORT || 11873, // MySQL port
+    host: process.env.DB_HOST,       // Database host
+    user: process.env.DB_USER,       // MySQL username
+    password: process.env.DB_PASSWORD, // MySQL password
+    database: process.env.DB_NAME    // Database name
 });
 
 // Test the connection
@@ -306,7 +296,7 @@ app.get('/api/latest-listings', (req, res) => {
   
         // Directly use imagesArray as it's already an array
         if (Array.isArray(listing.images) && listing.images.length > 0) {
-          image = `${process.env.RAILWAY_PUBLIC_DOMAIN}/uploads/${listing.images[0]}`; // Use the first image
+          image = `http://localhost:5000/uploads/${listing.images[0]}`; // Use the first image
         } else {
           image = "https://via.placeholder.com/300"; // Fallback image
         }
@@ -426,9 +416,6 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
     });
 });
 
-app.get('/', (req, res) => {
-  res.send('Welcome to the HerderHub API!');
-});
 
 app.post('/signup', (req, res) => {
     const { email, password } = req.body;
@@ -737,7 +724,7 @@ app.get('/api/settings', authenticateUser, async (req, res) => {
       const user = results[0];
       user.preferences = user.preferences ? JSON.parse(user.preferences) : null;
 
-      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN || "http://localhost:5000";
+      const baseUrl = process.env.BASE_URL || "http://localhost:5000";
       user.profile_picture = user.profile_picture
         ? `${baseUrl}/uploads/${user.profile_picture}`
         : `${baseUrl}/uploads/default-avatar.png`;
@@ -953,8 +940,6 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Starting the server
-// Server port
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(5000, () => {
+    console.log("Server running on port 5000");
 });
