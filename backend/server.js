@@ -431,46 +431,42 @@ app.get('/', (req, res) => {
 });
 
 app.post('/signup', (req, res) => {
-  console.log("📩 Received signup request:", req.body);  // Log request body
+  console.log("Signup request received:", req.body);
 
   const { email, password } = req.body;
 
   if (!email || !password) {
-      console.error("❌ Missing email or password");
+      console.log("Missing email or password");
       return res.status(400).json({ error: "Email and password are required" });
   }
 
-  // Hash the password before saving to the database
   bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
-          console.error("❌ Error hashing password:", err.message);
+          console.error("Error hashing password:", err.message);
           return res.status(500).json({ error: 'Internal Server Error' });
       }
 
-      console.log("🔑 Password hashed successfully");
+      console.log("Hashed password:", hashedPassword);
 
       const checkQuery = 'SELECT * FROM users WHERE email = ?';
       db.execute(checkQuery, [email], (err, results) => {
           if (err) {
-              console.error("❌ Error checking for existing user:", err.message);
+              console.error("Error checking for existing user:", err.message);
               return res.status(500).json({ error: 'Internal Server Error' });
           }
 
-          console.log("🔍 Check for existing user:", results);
-
           if (results.length > 0) {
-              console.error("⚠️ User already exists");
+              console.log("User already exists");
               return res.status(409).json({ error: "An account with this email already exists" });
           }
 
           const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
           db.execute(insertQuery, [email, hashedPassword], (err, results) => {
               if (err) {
-                  console.error("❌ Error inserting data:", err.message);
+                  console.error("Error inserting data:", err.message);
                   return res.status(500).json({ error: 'Internal Server Error' });
               }
-
-              console.log("✅ User created successfully:", results);
+              console.log("User created successfully with ID:", results.insertId);
               res.status(201).json({ message: 'User created successfully', userId: results.insertId });
           });
       });
