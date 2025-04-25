@@ -20,7 +20,11 @@ const router = express.Router();
 
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' })); // Adjust as needed
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Allow both origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // Include if using cookies or authentication
+}));
 app.use(express.json());
 // Mount the router
 app.use('/api', router);
@@ -269,49 +273,60 @@ app.get("/api/listings/:id", (req, res) => {
 
 
 
-
 app.get('/api/latest-listings', (req, res) => {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 3;
-    const offset = (page - 1) * limit;
-  
-    const sql = `SELECT id, title, description, price, location, images 
-                 FROM listings 
-                 ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?`;
-  
-    db.query(sql, [limit, offset], (err, results) => {
-      if (err) {
-        console.error("Error fetching listings:", err);
-        return res.status(500).send("Failed to load listings.");
+  const page = parseInt(req.query.page) || 1;
+  const limit = 3;
+  const offset = (page - 1) * limit;
+
+  const sql = `SELECT id, title, description, price, location, images 
+               FROM listings 
+               ORDER BY created_at DESC 
+               LIMIT ? OFFSET ?`;
+
+  db.query(sql, [limit, offset], (err, results) => {
+    if (err) {
+      console.error("Error fetching listings:", err);
+      return res.status(500).send("Failed to load listings.");
+    }
+
+    if (results.length === 0) {
+      return res.json([]);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`; // Dynamically get server URL
+
+    const formattedResults = results.map(listing => {
+      let images = [];
+      
+      try {
+          images = typeof listing.images === 'string' 
+              ? JSON.parse(listing.images) 
+              : listing.images || [];
+      } catch (e) {
+          console.error(`Image parse error for listing ${listing.id}:`, e);
       }
-  
-      if (results.length === 0) {
-        return res.json([]); // No listings found
-      }
-  
-      const formattedResults = results.map((listing) => {
-        let image;
-        console.log("Raw images data:", listing.images); // Log raw images data
-  
-        // Directly use imagesArray as it's already an array
-        if (Array.isArray(listing.images) && listing.images.length > 0) {
-          image = `http://localhost:5000/uploads/${listing.images[0]}`; // Use the first image
-        } else {
-          image = "https://via.placeholder.com/300"; // Fallback image
-        }
-  
-        // Return the listing with a single `image` field
-        return {
-          ...listing,
-          image, // Add the resolved image URL
-        };
+
+      // Convert to absolute URLs
+      const imageUrls = images.map(img => {
+          // Skip if already a URL
+          if (img.startsWith('http')) return img;
+          
+          // Remove any duplicate uploads/ prefix
+          const cleanName = img.replace(/^\/?uploads\//, '');
+          return `${req.protocol}://${req.get('host')}/uploads/${cleanName}`;
       });
-  
-      res.json(formattedResults);
-    });
+
+      return {
+          ...listing,
+          images: imageUrls,
+          primaryImage: imageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
+      };
   });
-  
+
+  res.json(formattedResults);
+});
+});
+
   
   
 // DELETE endpoint to remove listing by ID
@@ -418,40 +433,40 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
 
 
 app.post('/signup', (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-  }
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+    }
 
-  // Hash the password before saving to the database
-  bcrypt.hash(password, 10, (err, hashedPassword) => {
-      if (err) {
-          console.error("Error hashing password:", err.message);
-          return res.status(500).json({ error: 'Internal Server Error' });
-      }
+    // Hash the password before saving to the database
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            console.error("Error hashing password:", err.message);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
 
-      const checkQuery = 'SELECT * FROM users WHERE email = ?';
-      db.execute(checkQuery, [email], (err, results) => {
-          if (err) {
-              console.error("Error checking for existing user:", err.message);
-              return res.status(500).json({ error: 'Internal Server Error' });
-          }
+        const checkQuery = 'SELECT * FROM users WHERE email = ?';
+        db.execute(checkQuery, [email], (err, results) => {
+            if (err) {
+                console.error("Error checking for existing user:", err.message);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
 
-          if (results.length > 0) {
-              return res.status(409).json({ error: "An account with this email already exists" });
-          }
+            if (results.length > 0) {
+                return res.status(409).json({ error: "An account with this email already exists" });
+            }
 
-          const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
-          db.execute(insertQuery, [email, hashedPassword], (err, results) => {
-              if (err) {
-                  console.error("Error inserting data:", err.message);
-                  return res.status(500).json({ error: 'Internal Server Error' });
-              }
-              res.status(201).json({ message: 'User created successfully', userId: results.insertId });
-          });
-      });
-  });
+            const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
+            db.execute(insertQuery, [email, hashedPassword], (err, results) => {
+                if (err) {
+                    console.error("Error inserting data:", err.message);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+                res.status(201).json({ message: 'User created successfully', userId: results.insertId });
+            });
+        });
+    });
 });
 
 
@@ -937,8 +952,33 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 
 
 // Static files middleware for serving uploaded images
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+const staticOptions = {
+  // Force fresh files in development
+  cacheControl: false,
+  lastModified: false,
+  etag: false,
+  
+  setHeaders: (res, path) => {
+    console.log(`Serving: ${path}`); // Log served files
+    
+    // Set CORS headers (critical if frontend is on different port)
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin'
+    });
 
+    // Set proper content type
+    if (path.endsWith('.jpeg') || path.endsWith('.jpg')) {
+      res.set('Content-Type', 'image/jpeg');
+    }
+  }
+};
+
+app.use("/uploads", express.static(
+  path.join(__dirname, "uploads"), 
+  staticOptions
+));
 // Starting the server
 app.listen(5000, () => {
     console.log("Server running on port 5000");
