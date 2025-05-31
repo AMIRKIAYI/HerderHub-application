@@ -1,11 +1,20 @@
-# Use official MySQL image from Docker Hub
-FROM mysql:8.0
+# Use Node.js official image
+FROM node:18
 
-# Set environment variables for MySQL root password and default database
-ENV MYSQL_ROOT_PASSWORD=my-secret-pw
-ENV MYSQL_DATABASE=signup
-ENV MYSQL_USER=herderhubuser
-ENV MYSQL_PASSWORD=Amir2024
+# Set the working directory
+WORKDIR /app
 
-# Expose port 3306 for MySQL connections
-EXPOSE 3306
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the code
+COPY . .
+
+# Expose the port your app runs on
+EXPOSE 3000
+
+# Start the app using npm start
+CMD ["npm", "start"]
