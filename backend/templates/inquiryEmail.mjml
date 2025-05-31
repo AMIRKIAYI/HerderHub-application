@@ -1,0 +1,81 @@
+<mjml>
+  <mj-body background-color="#F3F4F6" font-family="Arial, sans-serif">
+
+    <!-- Header Section -->
+    <mj-section background-color="#A52A2A" padding="20px" text-align="center">
+      <mj-column>
+        <mj-text font-size="24px" color="#ffffff" font-weight="bold" font-family="Helvetica Neue, Arial, sans-serif">
+          New Inquiry on HerderHub
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Sender Info -->
+    <mj-section background-color="#ffffff" padding="20px 30px" border-radius="8px" box-shadow="0 2px 6px rgba(0,0,0,0.1)" font-family="Helvetica, Arial, sans-serif" css-class="sender-info">
+      <mj-column>
+        <mj-text font-size="16px" color="#222" font-weight="700" padding-bottom="10px" letter-spacing="0.5px" text-transform="uppercase" border-bottom="2px solid #A52A2A">
+          From
+        </mj-text>
+        <mj-text font-size="16px" color="#444444" line-height="24px">
+          <span style="font-weight: 600; color: #A52A2A;">{{senderName}}</span><br/>
+          <a href="mailto:{{senderEmail}}" style="color: #A52A2A; text-decoration: none;">{{senderEmail}}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Message -->
+    <mj-section background-color="#ffffff" padding="0 30px 20px 30px">
+      <mj-column>
+        <mj-text font-size="16px" color="#333333" font-weight="bold" padding-bottom="10px">
+          Message:
+        </mj-text>
+        <mj-text font-size="16px" color="#555555" line-height="22px" padding-bottom="20px">
+          {{message}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Livestock Details Table -->
+    <mj-section background-color="#ffffff" padding="20px 30px" border-radius="6px" border="1px solid #e0e0e0">
+      <mj-column>
+        <mj-text font-size="18px" color="#A52A2A" font-weight="bold" padding-bottom="15px">
+          Livestock Details
+        </mj-text>
+
+        <mj-table font-size="16px" color="#555555" cellpadding="5" cellspacing="0" width="100%" border="0">
+          <tr style="border-bottom:1px solid #ddd;">
+            <td><strong>Title:</strong></td>
+            <td>{{livestock.title}}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #ddd;">
+            <td><strong>Price:</strong></td>
+            <td>{{livestock.price}}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #ddd;">
+            <td><strong>Age:</strong></td>
+            <td>{{livestock.age}}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #ddd;">
+            <td><strong>Sex:</strong></td>
+            <td>{{livestock.sex}}</td>
+          </tr>
+          <tr>
+            <td><strong>Location:</strong></td>
+            <td>{{livestock.location}}</td>
+          </tr>
+        </mj-table>
+      </mj-column>
+    </mj-section>
+
+    <!-- Footer -->
+    <mj-section background-color="#F3F4F6" padding="30px 30px 10px 30px">
+      <mj-column>
+        <mj-text font-size="14px" color="#6b7280" line-height="20px" text-align="center">
+          Best regards,<br/>
+          <strong>HerderHub Team</strong>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

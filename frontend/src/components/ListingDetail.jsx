@@ -94,41 +94,58 @@ const ListingDetail = () => {
   // console.log("User details:", user); // Debugging the user details
   
   // In the email submit function
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-  
-    const animalDetailsSentence = `I am inquiring about the following livestock: ${listing.title}, ${listing.age} years old, ${listing.sex}. Located at ${listing.location}. Additional info: ${listing.additionalInfo || "None provided"}.`;
-    const fullMessage = `${animalDetailsSentence}\n\n${emailData.message}`;
-  
-    try {
-      const response = await fetch('http://localhost:5000/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sellerEmail: listing.sellerEmail,
-          subject: emailData.subject,
-          message: fullMessage,
-          senderName: user?.username || "Anonymous",
-          senderEmail: user?.email || "no-reply@example.com",
-        }),
-      });
-  
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Email sent successfully! ✔️', { position: "top-center", autoClose: 5000 });
-         setEmailStatus('Email sent successfully! ✔️'); // Update email status to success
-        setEmailData({ subject: `Inquiry about ${listing.title}`, message: "" }); // Reset form
-        handleCloseEmailForm(); // Close the modal
-      } else {
-        toast.error(data.error || 'Failed to send email 😞', { position: "top-center", autoClose: 5000 });
-      }
-    } catch (error) {
-      console.error("Error in API request:", error);
-      toast.error('Error sending email 😞', { position: "top-center", autoClose: 5000 });
-    }
+ const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+
+  // Prepare livestock data as structured object
+  const livestockDetails = {
+    title: listing.title,
+    price: `Kshs ${listing.price}`,
+    age: `${listing.age} years`,
+    sex: listing.sex,
+    location: listing.location,
+    additionalInfo: listing.additionalInfo || "None provided"
   };
+
+  try {
+    const response = await fetch('http://localhost:5000/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+     body: JSON.stringify({
+  sellerEmail: listing.sellerEmail,
+  subject: emailData.subject,
+  senderName: user?.username || "Anonymous",
+  senderEmail: user?.email || "no-reply@example.com",
+  livestockDetails: {
+    title: listing.title,
+    price: `Kshs ${listing.price}`,
+    age: `${listing.age} years`,
+    sex: listing.sex,
+    location: listing.location,
+    additionalInfo: listing.additionalInfo || "None provided"
+  },
+  message: emailData.message || ""
+}),
+
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      toast.success('Email sent successfully! ✔️', { position: "top-center", autoClose: 5000 });
+      setEmailStatus('Email sent successfully! ✔️'); // Update email status to success
+      setEmailData({ subject: `Inquiry about ${listing.title}`, message: "" }); // Reset form
+      handleCloseEmailForm(); // Close the modal
+    } else {
+      toast.error(data.error || 'Failed to send email 😞', { position: "top-center", autoClose: 5000 });
+    }
+  } catch (error) {
+    console.error("Error in API request:", error);
+    toast.error('Error sending email 😞', { position: "top-center", autoClose: 5000 });
+  }
+};
+
   
   
   const handleMessageClick = () => {
@@ -155,8 +172,16 @@ const ListingDetail = () => {
     }
   
     // Construct the message with listing details
-    const animalDetailsSentence = `I am inquiring about the following livestock: ${listing.title}, ${listing.age} years old, ${listing.sex}. Located at ${listing.location}. Additional info: ${listing.additionalInfo || "None provided"}.`;
-    const fullMessage = `${animalDetailsSentence}\n\n${messageData.message}`;
+   const animalDetailsSentence = `I am inquiring about the following livestock:
+- Title: ${listing.title}
+- Price: Kshs ${listing.price}
+- Age: ${listing.age} years
+- Sex: ${listing.sex}
+- Location: ${listing.location}
+- Additional Info: ${listing.additionalInfo || "None provided"}`;
+
+const fullMessage = `${animalDetailsSentence}\n\n${messageData.message}`;
+
   
     console.log('Submitting message:', { fullMessage, recipient: listing.sellerEmail });
   

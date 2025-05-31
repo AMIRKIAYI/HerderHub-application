@@ -7,6 +7,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const jwt = require("jsonwebtoken"); // Import JWT for user authentication
+const mjml = require('mjml');
+const handlebars = require('handlebars');
 
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
@@ -57,7 +59,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 
 
+
 app.post("/api/send-email", async (req, res) => {
+  
     const { sellerEmail, subject, message, senderName, senderEmail, livestockDetails } = req.body;
 
     if (!sellerEmail || !subject || !message) {
@@ -65,46 +69,46 @@ app.post("/api/send-email", async (req, res) => {
     }
 
     try {
-        // Create a transporter for sending emails
+        const mjmlTemplate = fs.readFileSync(path.join(__dirname, 'templates', 'inquiryEmail.mjml'), 'utf-8');
+
+        // Compile with Handlebars
+        const template = handlebars.compile(mjmlTemplate);
+        const mjmlWithValues = template({
+            senderName: senderName || 'Unknown',
+            senderEmail: senderEmail || 'No email provided',
+            message: message || '',
+            livestock: {
+                title: livestockDetails?.title || 'N/A',
+                price: livestockDetails?.price || 'N/A',
+                age: livestockDetails?.age || 'N/A',
+                sex: livestockDetails?.sex || 'N/A',
+                location: livestockDetails?.location || 'N/A'
+            }
+        });
+
+        // Convert to responsive HTML
+        const { html } = mjml(mjmlWithValues);
+
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: process.env.EMAIL_USER, // Use environment variable for security
-                pass: process.env.EMAIL_PASS, // Use environment variable for security
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
             },
         });
 
-        // Construct the email content, including livestock details if available
-        const emailContent = `
-You have a new message from ${senderName || 'Unknown'} (${senderEmail || 'No email provided'}):
-
-${livestockDetails ? `
-Livestock Details:
-- Title: ${livestockDetails.title || 'N/A'}
-- Price: Kshs ${livestockDetails.price || 'N/A'}
-- Age: ${livestockDetails.age || 'N/A'} years
-- Sex: ${livestockDetails.sex || 'N/A'}
-- Location: ${livestockDetails.location || 'N/A'}
-` : ''}
-        
-Message:
-${message}
-        `;
-
-        // Email details
         const mailOptions = {
-            from: senderEmail || process.env.EMAIL_USER, // Default to server email if sender email is missing
-            to: sellerEmail,   // Recipient email (seller's email)
+            from: senderEmail || process.env.EMAIL_USER,
+            to: sellerEmail,
             subject: subject,
-            text: emailContent.trim(),
+            html: html,
         };
 
-        // Send the email
         await transporter.sendMail(mailOptions);
-        res.status(200).json({ success: 'Email sent successfully!' });
+        res.status(200).json({ success: 'Beautiful email sent with livestock details!' });
     } catch (error) {
         console.error('Error sending email:', error);
-        res.status(500).json({ error: 'Failed to send email.' });
+        res.status(500).json({ error: 'Failed to send styled email.' });
     }
 });
 

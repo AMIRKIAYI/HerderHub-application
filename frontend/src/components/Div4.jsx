@@ -16,7 +16,7 @@ function Div4() {
             <h3 className="text-lg font-semibold">What our farmers have to say</h3>
           </div>
           <p className="text-gray-700 text-sm md:text-base">
-            I have used the SellMyLivestock website for selling hay, haylage and sheep. I have always had an excellent response. 
+            I have used the Herderhub website for selling hay, haylage and sheep. I have always had an excellent response. 
             It is an easy website to use, and I have uploaded a variety of photos, and easily updated them. I think it is now 
             the go-to website for farmers.
           </p>
