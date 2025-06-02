@@ -156,21 +156,48 @@ const upload = multer({
     }
 });
 
+// Serve files in the uploads directory statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 app.get("/api/listings/category/:category", (req, res) => {
-    const { category } = req.params;
-  
-    let query = "SELECT * FROM listings WHERE category = ?";
-    db.execute(query, [category], (err, results) => {
-      if (err) {
-        console.error("Error fetching listings by category:", err.message);
-        return res.status(500).json({ error: "Failed to fetch listings by category" });
+  const { category } = req.params;
+
+  // Query to get all listings, but prioritize those matching the category first
+  const query = `
+    SELECT * FROM listings
+    ORDER BY (category = ?) DESC, id DESC
+  `;
+
+  db.execute(query, [category], (err, results) => {
+    if (err) {
+      console.error("Error fetching listings:", err.message);
+      return res.status(500).json({ error: "Failed to fetch listings" });
+    }
+
+    const processedResults = results.map(listing => {
+      let images = [];
+      try {
+        images = typeof listing.images === 'string' ? JSON.parse(listing.images) : listing.images || [];
+      } catch(e) {
+        images = listing.images || [];
       }
-  
-      res.status(200).json(results);
+
+      const fullImageUrls = images.map(img => `http://localhost:5000/uploads/${img.replace(/^\/?uploads\//, '')}`);
+
+      return {
+        ...listing,
+        images: fullImageUrls,
+        primaryImage: listing.primaryImage
+          ? `http://localhost:5000/uploads/${listing.primaryImage.replace(/^\/?uploads\//, '')}`
+          : (fullImageUrls.length > 0 ? fullImageUrls[0] : null),
+      };
     });
+
+    res.status(200).json(processedResults);
   });
+});
+
   
 
 

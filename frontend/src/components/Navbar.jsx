@@ -8,7 +8,7 @@ import './Div1.css';
 import { Link, useNavigate } from 'react-router-dom';
 import SignUp from './SignUp';
 import SignIn from './SignIn';
-
+import SearchInput from './SearchInput';
 
 function Navbar({ data, onFilter }) {
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -17,12 +17,11 @@ function Navbar({ data, onFilter }) {
   const [isSignUpVisible, setSignUpVisible] = useState(false);
   const [isSignInVisible, setSignInVisible] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [redirectAfterLogin, setRedirectAfterLogin] = useState(false); // Track if login should redirect to post page
-  const [showSignInAlert, setShowSignInAlert] = useState(false); // New state for sign-in alert
-  const [isBrowseDropdownOpen, setBrowseDropdownOpen] = useState(false); // New state for browse dropdown
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState(false);
+  const [showSignInAlert, setShowSignInAlert] = useState(false);
+  const [isBrowseDropdownOpen, setBrowseDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredResults, setFilteredResults] = useState([]);
-
 
   const navigate = useNavigate();
 
@@ -30,28 +29,31 @@ function Navbar({ data, onFilter }) {
     const term = e.target.value;
     setSearchTerm(term);
 
-    // Perform filtering
+    if (term.length === 0) {
+      setFilteredResults([]);
+      onFilter(data);
+      return;
+    }
+
     const results = data.filter(item =>
       item.title.toLowerCase().includes(term.toLowerCase()) ||
       item.category.toLowerCase().includes(term.toLowerCase())
     );
 
     setFilteredResults(results);
-    onFilter(results); // Callback to parent to update Listings component
+    onFilter(results);
   };
 
-  // Open sign-in modal or navigate to the listing page if logged in
   const handlePostListingClick = () => {
     if (isLoggedIn) {
       navigate('/Postlisting');
     } else {
       setSignInVisible(true);
-      setRedirectAfterLogin(true); // Set flag to redirect after login
-      setShowSignInAlert(true); // Show alert on sign-in form
+      setRedirectAfterLogin(true);
+      setShowSignInAlert(true);
     }
   };
 
-  // Open the sign-up modal
   const handleSignUpClick = () => {
     setLoginMenuOpen(false);
     setAccountMenuOpen(false);
@@ -59,26 +61,22 @@ function Navbar({ data, onFilter }) {
     setSignUpVisible(true);
   };
 
-  // Open the sign-in modal
   const handleSignInClick = () => {
     setLoginMenuOpen(false);
     setAccountMenuOpen(false);
     setSignUpVisible(false);
     setSignInVisible(true);
-    setRedirectAfterLogin(false); // Reset redirect flag
-    setShowSignInAlert(false); // Reset alert message
+    setRedirectAfterLogin(false);
+    setShowSignInAlert(false);
   };
 
-  // Close modals
   const closeSignUp = () => setSignUpVisible(false);
-  const closeSignIn = () =>{
+  const closeSignIn = () => {
     setSignInVisible(false);
-    setShowSignInAlert(false); // Reset alert when closing sign-in modal
+    setShowSignInAlert(false);
   };
 
-  // Successful login callback
   useEffect(() => {
-    // Check if user is logged in on component mount
     const loggedInStatus = localStorage.getItem('isLoggedIn');
     if (loggedInStatus === 'true') {
       setIsLoggedIn(true);
@@ -89,20 +87,19 @@ function Navbar({ data, onFilter }) {
     setSignInVisible(false);
     setLoginMenuOpen(false);
     setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true'); // Persist login state
+    localStorage.setItem('isLoggedIn', 'true');
   
     if (redirectAfterLogin) {
-      navigate('/Postlisting'); // Redirect if login was for posting
-      setRedirectAfterLogin(false); // Reset flag
+      navigate('/Postlisting');
+      setRedirectAfterLogin(false);
     }
   };
   
   const handleLogout = () => {
     setIsLoggedIn(false);
     setAccountMenuOpen(false);
-    localStorage.removeItem('isLoggedIn'); // Clear persisted login state
+    localStorage.removeItem('isLoggedIn');
   };
-  
 
   const loginMenuRef = useRef(null);
 
@@ -111,7 +108,7 @@ function Navbar({ data, onFilter }) {
       setLoginMenuOpen(false);
       setAccountMenuOpen(false);
       setMenuOpen(false);
-      setBrowseDropdownOpen(false); // Close dropdown when clicking outside
+      setBrowseDropdownOpen(false);
     }
   };
 
@@ -182,34 +179,13 @@ function Navbar({ data, onFilter }) {
           </div>
         </nav>
 
-        <div className="newclass sm:hidden px-4 py-3 dark:bg-gray-700">
-          <input
-          type="text"
-          placeholder="Search listings..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="search-input w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-        />
-       {searchTerm && (
-    <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-md">
-      {filteredResults.length > 0 ? (
-        <ul>
-          {filteredResults.map((result, index) => (
-            <li
-              key={index}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-            >
-              {result}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="px-4 py-2 text-gray-500 text-center">
-          No results found
-        </div>
-      )}
-    </div>
-  )}
+        {/* Mobile Search */}
+        <div className="sm:hidden px-4 py-3 dark:bg-gray-700">
+          <SearchInput 
+            searchTerm={searchTerm}
+            filteredResults={filteredResults}
+            onSearchChange={handleSearchChange}
+          />
         </div>
 
         <nav className="nav2 dark:bg-gray-700">
@@ -222,50 +198,30 @@ function Navbar({ data, onFilter }) {
                   onMouseLeave={() => setBrowseDropdownOpen(false)}>
                     <Link to="/listings" className="text-white dark:text-gray-200 hover:text-gray-400">Browse Listings</Link>
                     {isBrowseDropdownOpen && (
-<ul className="browse-dropdown">
-  <li><Link to="/listings?category=Livestock&title=Cattle">Cattle</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Goat">Goats</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Sheep">Sheep</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Camel">Camel</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Donkey">Donkey</Link></li>
-  <li><Link to="/listings?category=Product">Products</Link></li>
-</ul>
-)}
-
-                    </li>
+                      <ul className="browse-dropdown">
+                        <li><Link to="/listings?category=Livestock&title=Cattle">Cattle</Link></li>
+                        <li><Link to="/listings?category=Livestock&title=Goat">Goats</Link></li>
+                        <li><Link to="/listings?category=Livestock&title=Sheep">Sheep</Link></li>
+                        <li><Link to="/listings?category=Livestock&title=Camel">Camel</Link></li>
+                        <li><Link to="/listings?category=Livestock&title=Donkey">Donkey</Link></li>
+                        <li><Link to="/listings?category=Product">Products</Link></li>
+                      </ul>
+                    )}
+                </li>
                 <li><Link to="/AboutUs" className="text-white dark:text-gray-200 hover:text-gray-400">About Us</Link></li>
                 <li><Link to="/Help" className="text-white dark:text-gray-200 hover:text-gray-400">Help</Link></li>
               </ul>
 
-              <div className="search hidden sm:block flex-grow mx-10">
-              <input
-          type="text"
-          placeholder="Search listings..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="search-input w-full max-w-xs px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-        />
-         {searchTerm && (
-        <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-md">
-          {filteredResults.length > 0 ? (
-            <ul>
-              {filteredResults.map((result, index) => (
-                <li
-                  key={index}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                >
-                  {result}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="px-4 py-2 text-gray-500 text-center">
-              No results found
-            </div>
-          )}
-        </div>
-      )}
-                <button onClick={handlePostListingClick} className="ml-2 px-4 py-2 text-white newbag rounded">
+              {/* Desktop Search and Post Listing */}
+              <div className="hidden sm:flex items-center flex-grow mx-10">
+                <div className="flex-grow max-w-md mr-4">
+                  <SearchInput 
+                    searchTerm={searchTerm}
+                    filteredResults={filteredResults}
+                    onSearchChange={handleSearchChange}
+                  />
+                </div>
+                <button onClick={handlePostListingClick} className="ml-2 px-4 py-2 text-white newbag rounded whitespace-nowrap">
                   Post Listing
                 </button>
               </div>
@@ -282,21 +238,20 @@ function Navbar({ data, onFilter }) {
           </div>
           <ul className="space-y-2 text-sm">
             <li><Link to="/" className="block text-gray-900 dark:text-white hover:text-gray-400">Home</Link></li>
-            <li
-             onMouseEnter={() => setBrowseDropdownOpen(true)}
-             onMouseLeave={() => setBrowseDropdownOpen(false)}>
-              <Link to="/listings" onClick={() => console.log("Listings link clicked!")} className="block text-gray-900 dark:text-white hover:text-gray-400">Browse Listing</Link>
-      {isBrowseDropdownOpen && (
-        <ul className="browse-dropdown">
-  <li><Link to="/listings?category=Livestock&title=Cattle">Cattle</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Goat">Goats</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Sheep">Sheep</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Camel">Camel</Link></li>
-  <li><Link to="/listings?category=Livestock&title=Donkey">Donkey</Link></li>
-  <li><Link to="/listings?category=Product">Products</Link></li>
-</ul>
-)}
-</li>
+            <li onMouseEnter={() => setBrowseDropdownOpen(true)}
+                onMouseLeave={() => setBrowseDropdownOpen(false)}>
+              <Link to="/listings" className="block text-gray-900 dark:text-white hover:text-gray-400">Browse Listing</Link>
+              {isBrowseDropdownOpen && (
+                <ul className="browse-dropdown">
+                  <li><Link to="/listings?category=Livestock&title=Cattle">Cattle</Link></li>
+                  <li><Link to="/listings?category=Livestock&title=Goat">Goats</Link></li>
+                  <li><Link to="/listings?category=Livestock&title=Sheep">Sheep</Link></li>
+                  <li><Link to="/listings?category=Livestock&title=Camel">Camel</Link></li>
+                  <li><Link to="/listings?category=Livestock&title=Donkey">Donkey</Link></li>
+                  <li><Link to="/listings?category=Product">Products</Link></li>
+                </ul>
+              )}
+            </li>
             <li><Link to="/AboutUs" className="block text-gray-900 dark:text-white hover:text-gray-400">About Us</Link></li>
             <li><Link to="/Help" className="block text-gray-900 dark:text-white hover:text-gray-400">Help</Link></li>
           </ul>
@@ -326,7 +281,7 @@ function Navbar({ data, onFilter }) {
     </div>
   );
 }
-// Add prop validation
+
 Navbar.propTypes = {
   data: PropTypes.arrayOf(
     PropTypes.shape({

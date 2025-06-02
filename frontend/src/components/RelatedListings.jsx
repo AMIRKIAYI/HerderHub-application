@@ -59,6 +59,7 @@ const RelatedListings = ({ category }) => {
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Related Listings</h3>
       <div className="space-y-4">
         {relatedListings.map((listing) => (
+          
           <Link 
             key={listing.id} 
             to={`/listing/${listing.id}`}
