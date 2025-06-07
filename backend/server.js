@@ -38,6 +38,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // MySQL2 database connection
 const db = mysql.createConnection({
     host: process.env.DB_HOST,       // Database host
+    port: process.env.DB_PORT,      // Database port
     user: process.env.DB_USER,       // MySQL username
     password: process.env.DB_PASSWORD, // MySQL password
     database: process.env.DB_NAME    // Database name
