@@ -28,7 +28,12 @@ app.use(cors({
 }));
 app.use(express.json());
 // Mount the router
+app.get('/', (req, res) => {
+  res.send('Backend is running!');
+});
+
 app.use('/api', router);
+
 
 
 // Middleware for parsing request bodies
