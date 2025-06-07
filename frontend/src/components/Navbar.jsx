@@ -181,11 +181,13 @@ function Navbar({ data, onFilter }) {
 
         {/* Mobile Search */}
         <div className="sm:hidden px-4 py-3 dark:bg-gray-700">
-          <SearchInput 
-            searchTerm={searchTerm}
-            filteredResults={filteredResults}
-            onSearchChange={handleSearchChange}
-          />
+       
+<SearchInput 
+  searchTerm={searchTerm}
+  onSearchChange={handleSearchChange}
+  listingsData={data} // Pass your listings data here
+/>
+
         </div>
 
         <nav className="nav2 dark:bg-gray-700">
