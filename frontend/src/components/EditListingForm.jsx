@@ -17,7 +17,7 @@ const EditListingForm = () => {
     const fetchListing = async () => {
       try {
         const jwtToken = localStorage.getItem('accessToken');
-        const response = await axios.get(`http://localhost:5000/api/listings/${id}`, {
+        const response = await axios.get(`https://herderhub-application-production.up.railway.app/api/listings/${id}`, {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -67,7 +67,7 @@ const EditListingForm = () => {
   
     try {
       const jwtToken = localStorage.getItem('accessToken');
-      await axios.put(`http://localhost:5000/api/update-listing/${id}`, formData, {
+      await axios.put(`https://herderhub-application-production.up.railway.app/api/update-listing/${id}`, formData, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
           'Content-Type': 'multipart/form-data', // This is necessary for file uploads

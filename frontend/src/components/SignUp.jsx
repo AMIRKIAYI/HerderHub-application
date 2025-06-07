@@ -51,7 +51,7 @@ function SignUp({ onClose, onSignInClick }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      axios.post('http://localhost:5000/signup', trimmedValues)
+      axios.post('https://herderhub-application-production.up.railway.app/signup', trimmedValues)
         .then(() => {
           console.log("User successfully registered!");
           alert("Signup successful! Redirecting to login...");

@@ -53,7 +53,7 @@ const ListingDetail = () => {
   useEffect(() => {
     const fetchListing = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/listings/${id}`);
+        const response = await axios.get(`https://herderhub-application-production.up.railway.app/api/listings/${id}`);
         console.log(response.data); // Debugging
         setListing(response.data);
       } catch (error) {
@@ -108,7 +108,7 @@ const ListingDetail = () => {
   };
 
   try {
-    const response = await fetch('http://localhost:5000/api/send-email', {
+    const response = await fetch('https://herderhub-application-production.up.railway.app/api/send-email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -193,7 +193,7 @@ const fullMessage = `${animalDetailsSentence}\n\n${messageData.message}`;
         return;
       }
   
-      const response = await fetch('http://localhost:5000/api/send-message', {
+      const response = await fetch('https://herderhub-application-production.up.railway.app/api/send-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ const fullMessage = `${animalDetailsSentence}\n\n${messageData.message}`;
           {listing.images && listing.images.length > 0 ? (
             <div className="relative">
               <img
-                src={`http://localhost:5000/uploads/${listing.images[currentImageIndex]}`}
+                src={`https://herderhub-application-production.up.railway.app/uploads/${listing.images[currentImageIndex]}`}
                 alt={listing.title}
                 className="w-full h-72 object-cover rounded-lg shadow-md transition-all duration-500"
               />

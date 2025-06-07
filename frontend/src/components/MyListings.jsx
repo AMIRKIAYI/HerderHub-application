@@ -21,7 +21,7 @@ const MyListings = () => {
       }
 
       try {
-        const response = await axios.get('http://localhost:5000/api/listings', {
+        const response = await axios.get('https://herderhub-application-production.up.railway.app/api/listings', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -77,7 +77,7 @@ const MyListings = () => {
             return (
               <div key={listing.id} className="bg-white border border-gray-200 rounded-lg shadow-md p-4">
                 <img
-                  src={`http://localhost:5000/uploads/${firstImage}`}
+                  src={`https://herderhub-application-production.up.railway.app/uploads/${firstImage}`}
                   alt={listing.title}
                   className="w-full h-48 object-cover rounded-lg mb-4"
                 />

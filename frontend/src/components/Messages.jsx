@@ -14,7 +14,7 @@ const Messages = () => {
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/messages', {
+        const response = await fetch('https://herderhub-application-production.up.railway.app/api/messages', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

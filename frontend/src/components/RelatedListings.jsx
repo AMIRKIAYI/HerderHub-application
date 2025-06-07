@@ -13,7 +13,7 @@ const RelatedListings = ({ category }) => {
       try {
         setLoading(true);
         const response = await axios.get(
-          `http://localhost:5000/api/listings/category/${category}`
+          `https://herderhub-application-production.up.railway.app/api/listings/category/${category}`
         );
         
         // Process listings to ensure proper image URLs
@@ -26,7 +26,7 @@ const RelatedListings = ({ category }) => {
           // Create primaryImage URL
           primaryImage: listing.primaryImage || (
             listing.images && listing.images.length > 0 
-              ? `http://localhost:5000/uploads/${listing.images[0].replace(/^\/?uploads\//, '')}`
+              ? `https://herderhub-application-production.up.railway.app/uploads/${listing.images[0].replace(/^\/?uploads\//, '')}`
               : 'https://via.placeholder.com/150'
           )
         }));

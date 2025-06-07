@@ -44,7 +44,7 @@ function SignIn({ onClose, onSignUpClick, onLoginSuccess, showAlert }) {
 
     if (Object.keys(validationErrors).length === 0) {
         try {
-            const response = await axios.post('http://localhost:5000/signin', values);
+            const response = await axios.post('https://herderhub-application-production.up.railway.app/signin', values);
             
             // Log the response data to check if it contains the accessToken
             console.log('Backend response:', response.data);

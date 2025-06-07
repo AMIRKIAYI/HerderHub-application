@@ -37,7 +37,7 @@ function Listings() {
   const fetchListings = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/api/listings", {
+      const response = await axios.get("https://herderhub-application-production.up.railway.app/api/listings", {
         params: filters, // Send filters as query parameters
       });
       console.log("Fetched Listings:", response.data);
@@ -167,7 +167,7 @@ function Listings() {
                   <img
                     src={
                       listing.images && listing.images.length > 0
-                        ? `http://localhost:5000/uploads/${listing.images[0]}`
+                        ? `https://herderhub-application-production.up.railway.app/uploads/${listing.images[0]}`
                         : "https://via.placeholder.com/300"
                     }
                     alt={listing.title}

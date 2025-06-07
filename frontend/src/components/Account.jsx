@@ -20,7 +20,7 @@ const Account = () => {
       }
 
       try {
-        const response = await axios.get('http://localhost:5000/api/settings', {
+        const response = await axios.get('https://herderhub-application-production.up.railway.app/api/settings', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -60,7 +60,7 @@ const Account = () => {
       <div className="w-full lg:w-1/4 bg-white shadow-lg relative">
         <div className="bg-brown-700 text-white p-4 flex items-center space-x-4">
           <img
-            src={user.profile_picture || 'http://localhost:5000/uploads/default-avatar.png'}
+            src={user.profile_picture || 'https://herderhub-application-production.up.railway.app/uploads/default-avatar.png'}
             alt="Profile"
             className="w-14 h-14 rounded-full object-cover"
             loading="lazy"
@@ -108,7 +108,7 @@ const Account = () => {
         <div className="mt-6 bg-white shadow-md p-6 rounded-lg">
           <div className="flex items-center">
             <img
-              src={user.profile_picture || 'http://localhost:5000/uploads/default-avatar.png'}
+              src={user.profile_picture || 'https://herderhub-application-production.up.railway.app/uploads/default-avatar.png'}
               alt="Profile"
               className="w-24 h-24 rounded-full object-cover mr-6"
               loading="lazy"

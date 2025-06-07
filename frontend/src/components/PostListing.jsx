@@ -108,7 +108,7 @@ const handleSubmit = async (e) => {
   });
 
   try {
-    const response = await axios.post('http://localhost:5000/api/post-listing', formDataToSubmit, {
+    const response = await axios.post('https://herderhub-application-production.up.railway.app/api/post-listing', formDataToSubmit, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

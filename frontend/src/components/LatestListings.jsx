@@ -14,7 +14,7 @@ function LatestListings() {
     const fetchLatestListings = async () => {
       try {
         setLoading(true);
-        const response = await axios.get("http://localhost:5000/api/latest-listings?page=1");
+        const response = await axios.get("https://herderhub-application-production.up.railway.app/api/latest-listings?page=1");
         if (response.data && response.data.length > 0) {
           // Ensure listings have properly formatted image URLs
           const processedListings = response.data.map(listing => ({
@@ -22,7 +22,7 @@ function LatestListings() {
             // Use primaryImage if provided by API, or construct fallback
             displayImage: listing.primaryImage || 
               (listing.images && listing.images.length > 0 
-                ? `http://localhost:5000/uploads/${listing.images[0]}`
+                ? `https://herderhub-application-production.up.railway.app/uploads/${listing.images[0]}`
                 : 'https://via.placeholder.com/300')
           }));
           setListings(processedListings);

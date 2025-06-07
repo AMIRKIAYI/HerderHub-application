@@ -46,7 +46,7 @@ const Settings = () => {
         formData.append('profilePicture', fileInput.files[0]);
       }
 
-      const profileResponse = await fetch('http://localhost:5000/api/settings', {
+      const profileResponse = await fetch('https://herderhub-application-production.up.railway.app/api/settings', {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${jwtToken}`, // Add token in headers
