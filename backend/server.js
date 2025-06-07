@@ -22,10 +22,15 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Allow both origins
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://herder-hub-application.vercel.app'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true, // Include if using cookies or authentication
+  credentials: true,
 }));
+
 app.use(express.json());
 // Mount the router
 app.get('/', (req, res) => {
