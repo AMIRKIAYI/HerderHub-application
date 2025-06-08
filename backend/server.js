@@ -1019,30 +1019,40 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 // Static files middleware for serving uploaded images
 // app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const staticOptions = {
-  // Force fresh files in development
+  // Disable caching for development
   cacheControl: false,
   lastModified: false,
   etag: false,
-  
+
   setHeaders: (res, path) => {
-    console.log(`Serving: ${path}`); // Log served files
-    
-    // Set CORS headers (critical if frontend is on different port)
+    console.log(`Serving: ${path}`);
+
+    // CORS headers
     res.set({
       'Access-Control-Allow-Origin': '*',
       'Cross-Origin-Resource-Policy': 'cross-origin'
     });
 
-    // Set proper content type
+    // Content-Type detection
     if (path.endsWith('.jpeg') || path.endsWith('.jpg')) {
       res.set('Content-Type', 'image/jpeg');
+    } else if (path.endsWith('.png')) {
+      res.set('Content-Type', 'image/png');
+    } else if (path.endsWith('.gif')) {
+      res.set('Content-Type', 'image/gif');
+    } else if (path.endsWith('.webp')) {
+      res.set('Content-Type', 'image/webp');
+    } else if (path.endsWith('.svg')) {
+      res.set('Content-Type', 'image/svg+xml');
     }
   }
 };
 
+
 // Update your static file serving to include the public directory
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), staticOptions));
+
 
 // Add this
 app.use((err, req, res, next) => {
