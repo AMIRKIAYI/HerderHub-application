@@ -46,23 +46,27 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // MySQL2 database connection
-const db = mysql.createConnection({
-    host: process.env.DB_HOST,       // Database host
-    port: process.env.DB_PORT,      // Database port
-    user: process.env.DB_USER,       // MySQL username
-    password: process.env.DB_PASSWORD, // MySQL password
-    database: process.env.DB_NAME    // Database name
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // Test the connection
-db.connect(err => {
-    if (err) {
-        console.error("Error connecting to the database:", err.message);
-        return;
-    }
-    console.log("Connected to the MySQL database.");
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to the database:", err.message);
+    return;
+  }
+  console.log("Connected to the MySQL database.");
+  connection.release();
 });
-
 // Secret key for JWT token
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -547,11 +551,12 @@ app.post('/signin', (req, res) => {
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      const accessToken = jwt.sign(
-        { userId: user.id, email: user.email, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+    // In your signin endpoint
+const accessToken = jwt.sign(
+  { userId: user.id, email: user.email, username: user.username },
+  process.env.JWT_SECRET,
+  { expiresIn: '24h' } // Increased from 1h
+);
 
       const refreshToken = jwt.sign(
         { userId: user.id },
@@ -613,44 +618,54 @@ const authenticateUser = (req, res, next) => {
 
 
 // POST endpoint to refresh the access token using a refresh token
-app.post('/refresh-token', (req, res) => {
+
+app.post('/refresh-token', async (req, res) => {
   const { refreshToken } = req.body;
 
   if (!refreshToken) {
     return res.status(401).json({ error: "Refresh token is required" });
   }
 
-  // Verify the refresh token
-  jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => { // Use the same secret for verification
-    if (err) {
-      console.error("Invalid or expired refresh token:", err.message);
-      return res.status(401).json({ error: "Invalid or expired refresh token" });
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    
+    // Check if refresh token exists in database
+    const [user] = await pool.promise().query(
+      'SELECT id FROM users WHERE id = ? AND refresh_token = ?',
+      [decoded.userId, refreshToken]
+    );
+
+    if (!user.length) {
+      return res.status(401).json({ error: "Invalid refresh token" });
     }
 
-    // Check if the refresh token exists in the database (optional but recommended)
-    const query = 'SELECT * FROM users WHERE id = ? AND refresh_token = ?';
-    db.execute(query, [decoded.userId, refreshToken], (err, results) => {
-      if (err) {
-        console.error("Error checking refresh token:", err.message);
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
+    // Generate new tokens
+    const newAccessToken = jwt.sign(
+      { userId: decoded.userId },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
-      if (results.length === 0) {
-        return res.status(401).json({ error: "Invalid refresh token" });
-      }
+    const newRefreshToken = jwt.sign(
+      { userId: decoded.userId },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-      // Generate a new access token
-      const newAccessToken = jwt.sign(
-        { userId: decoded.userId },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+    // Update refresh token in database
+    await pool.promise().query(
+      'UPDATE users SET refresh_token = ? WHERE id = ?',
+      [newRefreshToken, decoded.userId]
+    );
 
-      res.status(200).json({
-        accessToken: newAccessToken,
-      });
+    res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
     });
-  });
+  } catch (err) {
+    console.error("Token refresh error:", err);
+    res.status(401).json({ error: "Invalid or expired refresh token" });
+  }
 });
 
 
@@ -1021,6 +1036,27 @@ app.use("/uploads", express.static(
   staticOptions
 ));
 
+// Add this
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  
+  // Handle database connection errors
+  if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.fatal) {
+    console.error('Database connection was closed.');
+    return res.status(503).json({ error: 'Database connection lost. Please try again.' });
+  }
+  
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({ error: 'Token expired' });
+  }
+  
+  // Default error handler
+  res.status(500).json({ error: 'Something went wrong!' });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
