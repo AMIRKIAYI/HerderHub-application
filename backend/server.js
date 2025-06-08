@@ -142,36 +142,106 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Configure multer for handling image uploads
-// Set up multer storage configuration
+// Update your multer storage configuration
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, 'uploads/'); // Directory to store images
-    },
-    filename: (req, file, cb) => {
-      cb(null, Date.now() + path.extname(file.originalname)); // Use timestamp to avoid filename conflicts
-    }
-  });
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    // Convert all JPEG extensions to .jpg
+    const normalizedExt = ext === '.jpeg' ? '.jpg' : ext;
+    cb(null, Date.now() + normalizedExt);
+  }
+});
 
 const upload = multer({
-    storage,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB max per image
-    },
-    fileFilter: (req, file, cb) => {
-        const fileTypes = /jpeg|jpg|png|gif/;
-        const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = fileTypes.test(file.mimetype);
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max per image
+  },
+  fileFilter: (req, file, cb) => {
+    const fileTypes = /jpeg|jpg|png|gif/;
+    const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = fileTypes.test(file.mimetype);
 
-        if (extname && mimetype) {
-            return cb(null, true);
-        } else {
-            cb(new Error("Only images are allowed"), false);
-        }
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only images are allowed"), false);
     }
+  }
 });
 
 // Serve files in the uploads directory statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+function cleanImagePath(img) {
+  if (!img) return null;
+  // Remove any protocol/host if present
+  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
+}
+
+// Post a new listing with images
+app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
+    const {
+        title, description, category, price, quantity, location,
+        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
+    } = req.body;
+
+  
+const images = req.files ? req.files.map(file => file.filename) : [];
+
+    const listingData = {
+        title: title || null,
+        description: description || null,
+        category: category || null,
+        price: price || null,
+        quantity: quantity || null,
+        location: location || null,
+        additionalInfo: additionalInfo || null,
+        sellerName: sellerName || null,
+        sellerEmail: sellerEmail || null,
+        sellerPhone: sellerPhone || null,
+        sellerAddress: sellerAddress || null,
+        age: age || null,
+        sex: sex || null
+    };
+
+    if (!listingData.title || !listingData.description || !listingData.category || !listingData.price || !listingData.location || !listingData.sellerName || !listingData.sellerEmail) {
+        return res.status(400).json({ error: "Required fields are missing" });
+    }
+
+    const insertQuery = `
+        INSERT INTO listings (title, description, category, price, quantity, location, additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex, images)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const imagePaths = JSON.stringify(images); // Save as JSON string
+
+    pool.execute(insertQuery, [
+        listingData.title,
+        listingData.description,
+        listingData.category,
+        listingData.price,
+        listingData.quantity,
+        listingData.location,
+        listingData.additionalInfo,
+        listingData.sellerName,
+        listingData.sellerEmail,
+        listingData.sellerPhone,
+        listingData.sellerAddress,
+        listingData.age,
+        listingData.sex,
+        imagePaths
+    ], (err, result) => {
+        if (err) {
+            console.error("Error inserting listing data:", err.message);
+            return res.status(500).json({ error: 'Failed to save listing' });
+        }
+        res.status(201).json({ message: "Listing posted successfully", listingId: result.insertId });
+    });
+});
 
 
 app.get("/api/listings/category/:category", (req, res) => {
@@ -416,74 +486,6 @@ app.delete("/api/listings/:id", (req, res) => {
     });
 });
 
-function cleanImagePath(img) {
-  if (!img) return null;
-  // Remove any protocol/host if present
-  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
-}
-
-// Post a new listing with images
-app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
-    const {
-        title, description, category, price, quantity, location,
-        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
-    } = req.body;
-
-  
-const images = req.files 
-  ? req.files.map(file => file.filename).filter(name => name.match(/\.(jpg|jpeg|png|gif)$/i))
-  : [];
-
-    const listingData = {
-        title: title || null,
-        description: description || null,
-        category: category || null,
-        price: price || null,
-        quantity: quantity || null,
-        location: location || null,
-        additionalInfo: additionalInfo || null,
-        sellerName: sellerName || null,
-        sellerEmail: sellerEmail || null,
-        sellerPhone: sellerPhone || null,
-        sellerAddress: sellerAddress || null,
-        age: age || null,
-        sex: sex || null
-    };
-
-    if (!listingData.title || !listingData.description || !listingData.category || !listingData.price || !listingData.location || !listingData.sellerName || !listingData.sellerEmail) {
-        return res.status(400).json({ error: "Required fields are missing" });
-    }
-
-    const insertQuery = `
-        INSERT INTO listings (title, description, category, price, quantity, location, additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex, images)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const imagePaths = JSON.stringify(images); // Save as JSON string
-
-    pool.execute(insertQuery, [
-        listingData.title,
-        listingData.description,
-        listingData.category,
-        listingData.price,
-        listingData.quantity,
-        listingData.location,
-        listingData.additionalInfo,
-        listingData.sellerName,
-        listingData.sellerEmail,
-        listingData.sellerPhone,
-        listingData.sellerAddress,
-        listingData.age,
-        listingData.sex,
-        imagePaths
-    ], (err, result) => {
-        if (err) {
-            console.error("Error inserting listing data:", err.message);
-            return res.status(500).json({ error: 'Failed to save listing' });
-        }
-        res.status(201).json({ message: "Listing posted successfully", listingId: result.insertId });
-    });
-});
 
 
 app.post('/signup', (req, res) => {
