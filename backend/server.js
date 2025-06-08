@@ -15,7 +15,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
 const router = express.Router();
-const mysql = require("mysql2");
+
 
 const PORT = process.env.PORT || 5000;
 
