@@ -197,13 +197,13 @@ app.get("/api/listings/category/:category", (req, res) => {
         images = listing.images || [];
       }
 
-      const fullImageUrls = images.map(img => `http://localhost:5000/uploads/${img.replace(/^\/?uploads\//, '')}`);
+      const fullImageUrls = images.map(img => `https://herderhub-application-production.up.railway.app/uploads/${img.replace(/^\/?uploads\//, '')}`);
 
       return {
         ...listing,
         images: fullImageUrls,
         primaryImage: listing.primaryImage
-          ? `http://localhost:5000/uploads/${listing.primaryImage.replace(/^\/?uploads\//, '')}`
+          ? `https://herderhub-application-production.up.railway.app/uploads/${listing.primaryImage.replace(/^\/?uploads\//, '')}`
           : (fullImageUrls.length > 0 ? fullImageUrls[0] : null),
       };
     });
