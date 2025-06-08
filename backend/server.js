@@ -21,6 +21,7 @@ const PORT = process.env.PORT || 5000;
 
 
 const app = express();
+// Middleware Setup
 app.use(cors({
   origin: [
     'http://localhost:5173',
@@ -31,7 +32,11 @@ app.use(cors({
   credentials: true,
 }));
 
+
+// Middleware for parsing request bodies
 app.use(express.json());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 // Mount the router
 app.get('/', (req, res) => {
   res.send('Backend is running!');
@@ -40,13 +45,7 @@ app.get('/', (req, res) => {
 app.use('/api', router);
 
 
-
-// Middleware for parsing request bodies
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// MySQL2 database connection
-
+// Database Connection
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -61,15 +60,14 @@ const pool = mysql.createPool({
 // Test the connection
 pool.getConnection((err, connection) => {
   if (err) {
-    console.error("Error connecting to the database:", err.message);
+    console.error("Database connection error:", err.message);
     return;
   }
-  console.log("Connected to the MySQL database.");
+  console.log("Connected to MySQL database");
   connection.release();
 });
-// Secret key for JWT token
+// JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
-
 
 
 
@@ -128,28 +126,19 @@ app.post("/api/send-email", async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-// Create uploads folder if it doesn't exist
+// File Upload Configuration
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for handling image uploads
-// Update your multer storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    // Convert all JPEG extensions to .jpg
+    // Normalize all JPEG extensions to .jpg
     const normalizedExt = ext === '.jpeg' ? '.jpg' : ext;
     cb(null, Date.now() + normalizedExt);
   }
@@ -157,24 +146,34 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max per image
-  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const fileTypes = /jpeg|jpg|png|gif/;
     const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = fileTypes.test(file.mimetype);
-
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      cb(new Error("Only images are allowed"), false);
-    }
+    extname && mimetype ? cb(null, true) : cb(new Error("Only images are allowed"));
   }
 });
 
-// Serve files in the uploads directory statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Helper Functions
+function getImageUrl(req, imagePath) {
+  if (!imagePath) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+  
+  // Normalize path and extension
+  const cleanPath = imagePath.replace(/^.*[\\\/]/, '')
+                            .replace(/\.jpeg$/, '.jpg');
+  
+  return `${req.protocol}://${req.get('host')}/uploads/${cleanPath}`;
+}
+
+function cleanImagePath(img) {
+  if (!img) return null;
+  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
+}
+
+
+
+
 
 function cleanImagePath(img) {
   if (!img) return null;
@@ -182,65 +181,66 @@ function cleanImagePath(img) {
   return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
 }
 
-// Post a new listing with images
-app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
-    const {
-        title, description, category, price, quantity, location,
-        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
-    } = req.body;
+// Static File Serving
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') res.set('Content-Type', 'image/jpeg');
+    if (ext === '.png') res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
-  
-const images = req.files ? req.files.map(file => file.filename) : [];
+// Default Image Route
+app.get('/default-image.jpg', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'default-image.jpg'));
+});
 
-    const listingData = {
-        title: title || null,
-        description: description || null,
-        category: category || null,
-        price: price || null,
-        quantity: quantity || null,
-        location: location || null,
-        additionalInfo: additionalInfo || null,
-        sellerName: sellerName || null,
-        sellerEmail: sellerEmail || null,
-        sellerPhone: sellerPhone || null,
-        sellerAddress: sellerAddress || null,
-        age: age || null,
-        sex: sex || null
-    };
-
-    if (!listingData.title || !listingData.description || !listingData.category || !listingData.price || !listingData.location || !listingData.sellerName || !listingData.sellerEmail) {
-        return res.status(400).json({ error: "Required fields are missing" });
+// Health Check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uploadsDirectory: {
+      exists: fs.existsSync(uploadDir),
+      writable: fs.accessSync(uploadDir, fs.constants.W_OK),
+      path: uploadDir
     }
+  });
+});
 
-    const insertQuery = `
-        INSERT INTO listings (title, description, category, price, quantity, location, additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex, images)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
 
-    const imagePaths = JSON.stringify(images); // Save as JSON string
+// Post New Listing
+app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
+  const { title, description, category, price, quantity, location, additionalInfo, 
+          sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex } = req.body;
 
-    pool.execute(insertQuery, [
-        listingData.title,
-        listingData.description,
-        listingData.category,
-        listingData.price,
-        listingData.quantity,
-        listingData.location,
-        listingData.additionalInfo,
-        listingData.sellerName,
-        listingData.sellerEmail,
-        listingData.sellerPhone,
-        listingData.sellerAddress,
-        listingData.age,
-        listingData.sex,
-        imagePaths
-    ], (err, result) => {
-        if (err) {
-            console.error("Error inserting listing data:", err.message);
-            return res.status(500).json({ error: 'Failed to save listing' });
-        }
-        res.status(201).json({ message: "Listing posted successfully", listingId: result.insertId });
-    });
+  const images = req.files ? req.files.map(file => file.filename) : [];
+  const requiredFields = { title, description, category, price, location, sellerName, sellerEmail };
+  
+  if (Object.values(requiredFields).some(field => !field)) {
+    return res.status(400).json({ error: "Required fields are missing" });
+  }
+
+  pool.execute(
+    `INSERT INTO listings (
+      title, description, category, price, quantity, location, 
+      additionalInfo, sellerName, sellerEmail, sellerPhone, 
+      sellerAddress, age, sex, images
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      title, description, category, price, quantity, location,
+      additionalInfo || null, sellerName, sellerEmail, sellerPhone || null,
+      sellerAddress || null, age || null, sex || null, JSON.stringify(images)
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: 'Failed to save listing' });
+      }
+      res.status(201).json({ message: "Listing posted successfully", listingId: result.insertId });
+    }
+  );
 });
 
 
@@ -322,70 +322,40 @@ app.get("/api/listings/:id", (req, res) => {
   });
   
 
-  app.get("/api/listings", (req, res) => {
-    const { category, sex, age, location, title } = req.query;
+// Listings Endpoints
+app.get("/api/listings", (req, res) => {
+  const { category, sex, age, location, title } = req.query;
+  let query = "SELECT * FROM listings WHERE 1=1";
+  const params = [];
 
-    let query = "SELECT * FROM listings WHERE 1=1";
-    const params = [];
+  if (category) query += " AND category = ?", params.push(category);
+  if (sex) query += " AND sex = ?", params.push(sex);
+  if (age) query += " AND age LIKE ?", params.push(`%${age}%`);
+  if (location) query += " AND location LIKE ?", params.push(`%${location}%`);
+  if (title) query += " AND title LIKE ?", params.push(`%${title}%`);
 
-    // Apply filters dynamically if provided
-    if (category) {
-        query += " AND category = ?";
-        params.push(category);
-    }
-    if (sex) {
-        query += " AND sex = ?";
-        params.push(sex);
-    }
-    if (age) {
-        query += " AND age LIKE ?";
-        params.push(`%${age}%`);
-    }
-    if (location) {
-        query += " AND location LIKE ?";
-        params.push(`%${location}%`);
-    }
-    if (title) {
-        query += " AND title LIKE ?";
-        params.push(`%${title}%`);
-    }
+  pool.execute(query, params, (err, results) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch listings" });
 
-    pool.execute(query, params, (err, results) => {
-        if (err) {
-            console.error("Error fetching listings:", err.message);
-            return res.status(500).json({ error: "Failed to fetch listings" });
-        }
+    const formattedResults = results.map(listing => {
+      let images = [];
+      try {
+        images = typeof listing.images === 'string' ? JSON.parse(listing.images) : listing.images || [];
+      } catch (e) {
+        console.error(`Image parse error:`, e);
+        images = [];
+      }
 
-        // Debugging: Log raw results to check the exact value of `images`
-        console.log("Raw listings data:", results);
-
-        const formattedResults = results.map((listing) => {
-            let images = [];
-            try {
-                console.log("Parsing images for listing:", listing.id, listing.images);
-
-                // Check if listing.images is a string and needs parsing
-                if (typeof listing.images === "string") {
-                    images = JSON.parse(listing.images);
-                } else if (Array.isArray(listing.images)) {
-                    // If listing.images is already an array, use it as is
-                    images = listing.images;
-                } else {
-                    images = []; // Default to empty array if images is neither a string nor an array
-                }
-            } catch (e) {
-                console.error(`Error parsing images for listing ${listing.id}: ${e.message}`);
-                images = [];
-            }
-
-            return {
-                ...listing,
-                images,
-            };
-        });
-
-        res.status(200).json(formattedResults);
+      const imageUrls = images.map(img => getImageUrl(req, img));
+      return {
+        ...listing,
+        images: imageUrls.length > 0 ? imageUrls : [getImageUrl(req, null)],
+        primaryImage: imageUrls[0] || getImageUrl(req, null)
+      };
     });
+
+    res.status(200).json(formattedResults);
+  });
 });
 
 
@@ -531,55 +501,32 @@ app.post('/signup', (req, res) => {
 
 
 
-// POST endpoint to handle login and generate JWT tokens
+// User Authentication Endpoints
 app.post('/signin', (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
-
-  const query = 'SELECT * FROM users WHERE email = ?';
-  pool.execute(query, [email], (err, results) => {
-    if (err) {
-      console.error("Error fetching user:", err.message);
-      return res.status(500).json({ error: 'Internal Server Error' });
-    }
-
-    if (results.length === 0) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+  pool.execute('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (results.length === 0) return res.status(401).json({ error: "Invalid credentials" });
 
     const user = results[0];
-
     bcrypt.compare(password, user.password, (err, match) => {
-      if (err) {
-        console.error("Error comparing passwords:", err.message);
-        return res.status(500).json({ error: 'Internal Server Error' });
-      }
+      if (err || !match) return res.status(401).json({ error: "Invalid credentials" });
 
-      if (!match) {
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
-
-    // In your signin endpoint
-const accessToken = jwt.sign(
-  { userId: user.id, email: user.email, username: user.username },
-  process.env.JWT_SECRET,
-  { expiresIn: '24h' } // Increased from 1h
-);
+      const accessToken = jwt.sign(
+        { userId: user.id, email: user.email, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
 
       const refreshToken = jwt.sign(
         { userId: user.id },
-        process.env.JWT_SECRET, // Use the same secret for refresh token
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      // Log tokens for debugging
-      console.log("Access Token:", accessToken);
-      console.log("Refresh Token:", refreshToken);
-
-      res.status(200).json({
+      res.json({
         message: "Login successful",
         accessToken,
         refreshToken,
@@ -594,37 +541,21 @@ const accessToken = jwt.sign(
   });
 });
 
+// Authentication Middleware
 const authenticateUser = (req, res, next) => {
-  
-
   const authHeader = req.headers.authorization;
-
-  console.log("Request Headers:", req.headers);
-
-  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader === 'Bearer null') {
-    console.error("Authorization header missing or malformed");
-    return res.status(401).json({ error: "Unauthorized: No token provided or invalid token" });
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const token = authHeader.split(' ')[1];
-
-  console.log("Received Token in Middleware:", token);
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      console.error("JWT verification failed:", err.message);
-      return res.status(401).json({ error: "Invalid or expired token" });
-    }
-
-    console.log("Decoded Token in Middleware:", decoded);
-
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(401).json({ error: "Invalid or expired token" });
     req.userId = decoded.userId;
-    req.userEmail = decoded.email;  // Save the email from the decoded token
+    req.userEmail = decoded.email;
     next();
   });
 };
-
-
 
 
 
@@ -681,23 +612,19 @@ app.post('/refresh-token', async (req, res) => {
 
 
 
-
-
-
-// POST endpoint for user logout (invalidate refresh token)
+// Logout Endpoint
 app.post('/logout', authenticateUser, (req, res) => {
-  const userId = req.userId;
-
-  // Invalidate the refresh token by setting it to null in the database
-  const query = 'UPDATE users SET refresh_token = NULL WHERE id = ?';
-  pool.execute(query, [userId], (err) => {
-    if (err) {
-      console.error("Error logging out user:", err.message);
-      return res.status(500).json({ error: "Failed to log out" });
+  pool.execute(
+    'UPDATE users SET refresh_token = NULL WHERE id = ?',
+    [req.userId],
+    (err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
     }
-
-    res.status(200).json({ message: "Logged out successfully" });
-  });
+  );
 });
 
 
@@ -1014,69 +941,15 @@ app.get('/api/messages', authenticateUser, (req, res) => {
 });
 
 
-
-
-
-
-// Static files middleware for serving uploaded images
-// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-const staticOptions = {
-  // Disable caching for development
-  cacheControl: false,
-  lastModified: false,
-  etag: false,
-
-  setHeaders: (res, path) => {
-    console.log(`Serving: ${path}`);
-
-    // CORS headers
-    res.set({
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin'
-    });
-
-    // Content-Type detection
-    if (path.endsWith('.jpeg') || path.endsWith('.jpg')) {
-      res.set('Content-Type', 'image/jpeg');
-    } else if (path.endsWith('.png')) {
-      res.set('Content-Type', 'image/png');
-    } else if (path.endsWith('.gif')) {
-      res.set('Content-Type', 'image/gif');
-    } else if (path.endsWith('.webp')) {
-      res.set('Content-Type', 'image/webp');
-    } else if (path.endsWith('.svg')) {
-      res.set('Content-Type', 'image/svg+xml');
-    }
-  }
-};
-
-
-// Update your static file serving to include the public directory
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), staticOptions));
-
-
-// Add this
+// Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  
-  // Handle database connection errors
-  if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.fatal) {
-    console.error('Database connection was closed.');
-    return res.status(503).json({ error: 'Database connection lost. Please try again.' });
+  console.error('Error:', err);
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: "File upload error: " + err.message });
   }
-  
-  // Handle JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({ error: 'Token expired' });
-  }
-  
-  // Default error handler
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: "Internal server error" });
 });
+
 
 // Add this before your app.listen()
 app.get('/default-image.jpg', (req, res) => {
@@ -1089,4 +962,5 @@ app.get('/default-image.jpg', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+   console.log(`Uploads directory: ${uploadDir}`);
 });
