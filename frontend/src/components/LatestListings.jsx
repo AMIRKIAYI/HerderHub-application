@@ -16,14 +16,10 @@ function LatestListings() {
         setLoading(true);
         const response = await axios.get("https://herderhub-application-production.up.railway.app/api/latest-listings?page=1");
         if (response.data && response.data.length > 0) {
-          // Ensure listings have properly formatted image URLs
+          // Process listings with proper image fallbacks
           const processedListings = response.data.map(listing => ({
             ...listing,
-            // Use primaryImage if provided by API, or construct fallback
-            displayImage: listing.primaryImage || 
-              (listing.images && listing.images.length > 0 
-                ? `https://herderhub-application-production.up.railway.app/uploads/${listing.images[0]}`
-                : 'https://via.placeholder.com/300')
+            displayImage: getValidImageUrl(listing)
           }));
           setListings(processedListings);
         } else {
@@ -40,10 +36,44 @@ function LatestListings() {
     fetchLatestListings();
   }, []);
 
+  // Helper function to get valid image URL
+  const getValidImageUrl = (listing) => {
+    // First try primaryImage if available
+    if (listing.primaryImage) {
+      return ensureAbsoluteUrl(listing.primaryImage);
+    }
+    
+    // Then try first image from images array if available
+    if (listing.images && listing.images.length > 0) {
+      return ensureAbsoluteUrl(listing.images[0]);
+    }
+    
+    // Fallback to default image
+    return '/default-image.jpg';
+  };
+
+  // Ensure URL is absolute and points to our server
+  const ensureAbsoluteUrl = (imagePath) => {
+    if (!imagePath) return '/default-image.jpg';
+    
+    // If already absolute URL, return as-is
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // If starts with /uploads, make absolute
+    if (imagePath.startsWith('/uploads')) {
+      return `https://herderhub-application-production.up.railway.app${imagePath}`;
+    }
+    
+    // Otherwise assume it's a filename in uploads
+    return `https://herderhub-application-production.up.railway.app/uploads/${imagePath}`;
+  };
+
   // Handle image loading errors
   const handleImageError = (e) => {
     console.error('Failed to load image:', e.target.src);
-    e.target.src = 'https://via.placeholder.com/300';
+    e.target.src = '/default-image.jpg'; // Use local fallback
     e.target.onerror = null; // Prevent infinite loop
   };
 
