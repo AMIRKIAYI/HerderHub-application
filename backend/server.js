@@ -15,7 +15,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require("nodemailer");
 const bodyParser = require('body-parser');
 const router = express.Router();
-
+const mysql = require("mysql2");
 
 const PORT = process.env.PORT || 5000;
 
@@ -183,7 +183,7 @@ app.get("/api/listings/category/:category", (req, res) => {
     ORDER BY (category = ?) DESC, id DESC
   `;
 
-  db.execute(query, [category], (err, results) => {
+  pool.execute(query, [category], (err, results) => {
     if (err) {
       console.error("Error fetching listings:", err.message);
       return res.status(500).json({ error: "Failed to fetch listings" });
@@ -220,7 +220,7 @@ app.get("/api/listings/:id", (req, res) => {
     const listingId = req.params.id;
   
     const query = "SELECT * FROM listings WHERE id = ?";
-    db.execute(query, [listingId], (err, results) => {
+    pool.execute(query, [listingId], (err, results) => {
       if (err) {
         console.error("Error fetching listing:", err.message);
         return res.status(500).json({ error: "Internal Server Error" });
@@ -277,7 +277,7 @@ app.get("/api/listings/:id", (req, res) => {
         params.push(`%${title}%`);
     }
 
-    db.execute(query, params, (err, results) => {
+    pool.execute(query, params, (err, results) => {
         if (err) {
             console.error("Error fetching listings:", err.message);
             return res.status(500).json({ error: "Failed to fetch listings" });
@@ -328,7 +328,7 @@ app.get('/api/latest-listings', (req, res) => {
                ORDER BY created_at DESC 
                LIMIT ? OFFSET ?`;
 
-  db.query(sql, [limit, offset], (err, results) => {
+  pool.query(sql, [limit, offset], (err, results) => {
     if (err) {
       console.error("Error fetching listings:", err);
       return res.status(500).send("Failed to load listings.");
@@ -380,7 +380,7 @@ app.delete("/api/listings/:id", (req, res) => {
 
     // Query to get the images associated with the listing
     const query = "SELECT images FROM listings WHERE id = ?";
-    db.execute(query, [listingId], (err, results) => {
+    pool.execute(query, [listingId], (err, results) => {
         if (err) {
             console.error("Error fetching listing:", err.message);
             return res.status(500).json({ error: "Internal Server Error" });
@@ -403,7 +403,7 @@ app.delete("/api/listings/:id", (req, res) => {
 
         // Delete listing from the database
         const deleteQuery = "DELETE FROM listings WHERE id = ?";
-        db.execute(deleteQuery, [listingId], (err, result) => {
+        pool.execute(deleteQuery, [listingId], (err, result) => {
             if (err) {
                 console.error("Error deleting listing:", err.message);
                 return res.status(500).json({ error: "Failed to delete listing" });
@@ -452,7 +452,7 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
 
     const imagePaths = JSON.stringify(images); // Save as JSON string
 
-    db.execute(insertQuery, [
+    pool.execute(insertQuery, [
         listingData.title,
         listingData.description,
         listingData.category,
@@ -492,7 +492,7 @@ app.post('/signup', (req, res) => {
         }
 
         const checkQuery = 'SELECT * FROM users WHERE email = ?';
-        db.execute(checkQuery, [email], (err, results) => {
+        pool.execute(checkQuery, [email], (err, results) => {
             if (err) {
                 console.error("Error checking for existing user:", err.message);
                 return res.status(500).json({ error: 'Internal Server Error' });
@@ -503,7 +503,7 @@ app.post('/signup', (req, res) => {
             }
 
             const insertQuery = 'INSERT INTO users (email, password) VALUES (?, ?)';
-            db.execute(insertQuery, [email, hashedPassword], (err, results) => {
+            pool.execute(insertQuery, [email, hashedPassword], (err, results) => {
                 if (err) {
                     console.error("Error inserting data:", err.message);
                     return res.status(500).json({ error: 'Internal Server Error' });
@@ -529,7 +529,7 @@ app.post('/signin', (req, res) => {
   }
 
   const query = 'SELECT * FROM users WHERE email = ?';
-  db.execute(query, [email], (err, results) => {
+  pool.execute(query, [email], (err, results) => {
     if (err) {
       console.error("Error fetching user:", err.message);
       return res.status(500).json({ error: 'Internal Server Error' });
@@ -679,7 +679,7 @@ app.post('/logout', authenticateUser, (req, res) => {
 
   // Invalidate the refresh token by setting it to null in the database
   const query = 'UPDATE users SET refresh_token = NULL WHERE id = ?';
-  db.execute(query, [userId], (err) => {
+  pool.execute(query, [userId], (err) => {
     if (err) {
       console.error("Error logging out user:", err.message);
       return res.status(500).json({ error: "Failed to log out" });
@@ -749,7 +749,7 @@ app.put('/api/settings', authenticateUser, upload.single('profilePicture'), asyn
     const query = `UPDATE users SET ${updates.join(", ")} WHERE id = ?`;
     params.push(userId);
 
-    db.execute(query, params, (err) => {
+    pool.execute(query, params, (err) => {
       if (err) {
         console.error("Error updating user settings:", err.message);
         return res.status(500).json({ error: "Failed to update settings. Please try again later." });
@@ -782,7 +782,7 @@ app.get('/api/settings', authenticateUser, async (req, res) => {
 
   try {
     const query = "SELECT email, username, preferences, profile_picture FROM users WHERE id = ?";
-    db.execute(query, [userId], (err, results) => {
+    pool.execute(query, [userId], (err, results) => {
       if (err) {
         console.error(`Database error [${err.code}]: ${err.message}`);
         return res.status(500).json({ success: false, error: "Failed to fetch user settings." });
@@ -820,7 +820,7 @@ app.put('/api/settings/change-password', authenticateUser, async (req, res) => {
   try {
     // Retrieve the user from the database
     const query = 'SELECT password FROM users WHERE id = ?';
-    db.execute(query, [userId], async (err, results) => {
+    pool.execute(query, [userId], async (err, results) => {
       if (err) {
         console.error('Error fetching user:', err.message);
         return res.status(500).json({ error: "Failed to fetch user." });
@@ -842,7 +842,7 @@ app.put('/api/settings/change-password', authenticateUser, async (req, res) => {
 
       // Update the password in the database
       const updateQuery = 'UPDATE users SET password = ? WHERE id = ?';
-      db.execute(updateQuery, [hashedNewPassword, userId], (updateErr, updateResults) => {
+      pool.execute(updateQuery, [hashedNewPassword, userId], (updateErr, updateResults) => {
         if (updateErr) {
           console.error('Error updating password:', updateErr.message);
           return res.status(500).json({ error: "Failed to update password." });
@@ -899,7 +899,7 @@ app.put("/api/update-listing/:id", upload.array("images", 10), (req, res) => {
 
   // First, check if the listing exists
   const checkListingQuery = 'SELECT * FROM listings WHERE id = ?';
-  db.execute(checkListingQuery, [listingId], (err, result) => {
+  pool.execute(checkListingQuery, [listingId], (err, result) => {
       if (err) {
           console.error('Error checking listing:', err.message);
           return res.status(500).json({ error: 'Failed to check listing' });
@@ -916,7 +916,7 @@ app.put("/api/update-listing/:id", upload.array("images", 10), (req, res) => {
           WHERE id = ?
       `;
 
-      db.execute(updateQuery, [
+      pool.execute(updateQuery, [
           updatedListingData.title,
           updatedListingData.description,
           updatedListingData.category,
@@ -958,7 +958,7 @@ app.post('/api/send-message', authenticateUser, (req, res) => {
 
   // Verify recipient email exists in the database
   const query = 'SELECT email FROM users WHERE email = ?';
-  db.execute(query, [recipient.trim()], (err, results) => {
+  pool.execute(query, [recipient.trim()], (err, results) => {
     if (err) {
       console.error("Error fetching recipient email:", err.message);
       return res.status(500).json({ error: 'Internal server error' });
@@ -974,7 +974,7 @@ app.post('/api/send-message', authenticateUser, (req, res) => {
       INSERT INTO messages (recipient, messageText, senderEmail, receiverEmail)
       VALUES (?, ?, ?, ?)
     `;
-    db.execute(messageQuery, [recipient, messageText, senderEmail, recipient], (err, result) => {
+    pool.execute(messageQuery, [recipient, messageText, senderEmail, recipient], (err, result) => {
       if (err) {
         console.error("Error inserting message into database:", err.message);
         return res.status(500).json({ error: 'Error inserting message' });
@@ -992,7 +992,7 @@ app.get('/api/messages', authenticateUser, (req, res) => {
   // Query to fetch messages where the logged-in user is the recipient
   const query = 'SELECT * FROM messages WHERE recipient = ?';
   
-  db.execute(query, [userEmail], (err, results) => {
+  pool.execute(query, [userEmail], (err, results) => {
     if (err) {
       console.error("Error fetching messages:", err.message);
       return res.status(500).json({ error: 'Internal server error' });
