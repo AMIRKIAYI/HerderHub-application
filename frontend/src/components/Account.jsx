@@ -37,13 +37,49 @@ const Account = () => {
     fetchUserData();
   }, [navigate]);
 
-  // Handle Logout
-  const handleLogout = () => {
+  // Enhanced Logout Function
+
+const handleLogout = async () => {
+  try {
+    const jwtToken = localStorage.getItem('accessToken');
+    
+    // Call backend logout endpoint if token exists
+    if (jwtToken) {
+      await axios.post('https://herderhub-application-production.up.railway.app/logout', {}, {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      });
+    }
+
+    // Clear all user-related data from local storage
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('isLoggedIn');
+    
+    // Reset user state
     setUser(null);
-    navigate('/login');
-  };
+    
+    // Emit a custom event to notify other components
+    window.dispatchEvent(new Event('logout'));
+    
+    // Redirect to home page with success message
+    navigate('/', { state: { message: 'You have been successfully logged out' } });
+    
+  } catch (error) {
+    console.error('Logout failed:', error);
+    
+    // Fallback cleanup if API call fails
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('isLoggedIn');
+    setUser(null);
+    window.dispatchEvent(new Event('logout'));
+    navigate('/', { state: { message: 'You have been logged out' } });
+  }
+};
 
   // If user is not found, show loading spinner
   if (!user) {
@@ -120,8 +156,6 @@ const Account = () => {
           </div>
         </div>
 
-        {/* Pass updateUserDetails to child components */}
-        
         <Outlet context={{ user, updateUserDetails: setUser }} />
       </div>
     </div>

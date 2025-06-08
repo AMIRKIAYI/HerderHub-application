@@ -77,11 +77,25 @@ function Navbar({ data, onFilter }) {
   };
 
   useEffect(() => {
+    // Check initial login status
     const loggedInStatus = localStorage.getItem('isLoggedIn');
     if (loggedInStatus === 'true') {
       setIsLoggedIn(true);
     }
+
+    // Add event listener for logout events
+    const handleLogoutEvent = () => {
+      setIsLoggedIn(false);
+      setAccountMenuOpen(false);
+    };
+
+    window.addEventListener('logout', handleLogoutEvent);
+
+    return () => {
+      window.removeEventListener('logout', handleLogoutEvent);
+    };
   }, []);
+
   
   const handleLoginSuccess = () => {
     setSignInVisible(false);
@@ -95,11 +109,34 @@ function Navbar({ data, onFilter }) {
     }
   };
   
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setAccountMenuOpen(false);
+ const handleLogout = async () => {
+  try {
+    const jwtToken = localStorage.getItem('accessToken');
+    if (jwtToken) {
+      await axios.post('https://herderhub-application-production.up.railway.app/logout', {}, {
+        headers: { Authorization: `Bearer ${jwtToken}` }
+      });
+    }
+    
+    // Clear storage and update state
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     localStorage.removeItem('isLoggedIn');
-  };
+    
+    // Notify all components
+    window.dispatchEvent(new Event('logout'));
+    
+    // Redirect to home
+    navigate('/', { state: { message: 'Logged out successfully' } });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Fallback cleanup
+    localStorage.clear();
+    window.dispatchEvent(new Event('logout'));
+    navigate('/');
+  }
+};
 
   const loginMenuRef = useRef(null);
 
