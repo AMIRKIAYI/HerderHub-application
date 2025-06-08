@@ -189,24 +189,27 @@ app.get("/api/listings/category/:category", (req, res) => {
       return res.status(500).json({ error: "Failed to fetch listings" });
     }
 
-    const processedResults = results.map(listing => {
-      let images = [];
-      try {
-        images = typeof listing.images === 'string' ? JSON.parse(listing.images) : listing.images || [];
-      } catch(e) {
-        images = listing.images || [];
-      }
+    // In your /api/listings/category/:category route
+const processedResults = results.map(listing => {
+  let images = [];
+  try {
+    images = typeof listing.images === 'string' ? JSON.parse(listing.images) : listing.images || [];
+  } catch(e) {
+    images = listing.images || [];
+  }
 
-      const fullImageUrls = images.map(img => `https://herderhub-application-production.up.railway.app/uploads/${img.replace(/^\/?uploads\//, '')}`);
+  const fullImageUrls = images.map(img => {
+    if (!img) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+    if (img.startsWith('http')) return img;
+    return `${req.protocol}://${req.get('host')}/uploads/${img.replace(/^\/?uploads\//, '')}`;
+  });
 
-      return {
-        ...listing,
-        images: fullImageUrls,
-        primaryImage: listing.primaryImage
-          ? `https://herderhub-application-production.up.railway.app/uploads/${listing.primaryImage.replace(/^\/?uploads\//, '')}`
-          : (fullImageUrls.length > 0 ? fullImageUrls[0] : null),
-      };
-    });
+  return {
+    ...listing,
+    images: fullImageUrls.length > 0 ? fullImageUrls : [`${req.protocol}://${req.get('host')}/default-image.jpg`],
+    primaryImage: fullImageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
+  };
+});
 
     res.status(200).json(processedResults);
   });
@@ -340,33 +343,32 @@ app.get('/api/latest-listings', (req, res) => {
 
     const baseUrl = `${req.protocol}://${req.get('host')}`; // Dynamically get server URL
 
-    const formattedResults = results.map(listing => {
-      let images = [];
-      
-      try {
-          images = typeof listing.images === 'string' 
-              ? JSON.parse(listing.images) 
-              : listing.images || [];
-      } catch (e) {
-          console.error(`Image parse error for listing ${listing.id}:`, e);
-      }
+   // In your /api/latest-listings route
+const formattedResults = results.map(listing => {
+  let images = [];
+  
+  try {
+    images = typeof listing.images === 'string' 
+      ? JSON.parse(listing.images) 
+      : listing.images || [];
+  } catch (e) {
+    console.error(`Image parse error for listing ${listing.id}:`, e);
+    images = [];
+  }
 
-      // Convert to absolute URLs
-      const imageUrls = images.map(img => {
-          // Skip if already a URL
-          if (img.startsWith('http')) return img;
-          
-          // Remove any duplicate uploads/ prefix
-          const cleanName = img.replace(/^\/?uploads\//, '');
-          return `${req.protocol}://${req.get('host')}/uploads/${cleanName}`;
-      });
-
-      return {
-          ...listing,
-          images: imageUrls,
-          primaryImage: imageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
-      };
+  // Convert to absolute URLs with proper fallback
+  const imageUrls = images.map(img => {
+    if (!img) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+    if (img.startsWith('http')) return img;
+    return `${req.protocol}://${req.get('host')}/uploads/${img.replace(/^\/?uploads\//, '')}`;
   });
+
+  return {
+    ...listing,
+    images: imageUrls.length > 0 ? imageUrls : [`${req.protocol}://${req.get('host')}/default-image.jpg`],
+    primaryImage: imageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
+  };
+});
 
   res.json(formattedResults);
 });
@@ -414,7 +416,11 @@ app.delete("/api/listings/:id", (req, res) => {
     });
 });
 
-
+function cleanImagePath(img) {
+  if (!img) return null;
+  // Remove any protocol/host if present
+  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
+}
 
 // Post a new listing with images
 app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
@@ -423,7 +429,10 @@ app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
         additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
     } = req.body;
 
-    const images = req.files ? req.files.map(file => file.filename) : [];
+  
+const images = req.files 
+  ? req.files.map(file => file.filename).filter(name => name.match(/\.(jpg|jpeg|png|gif)$/i))
+  : [];
 
     const listingData = {
         title: title || null,
@@ -1031,10 +1040,9 @@ const staticOptions = {
   }
 };
 
-app.use("/uploads", express.static(
-  path.join(__dirname, "uploads"), 
-  staticOptions
-));
+// Update your static file serving to include the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), staticOptions));
 
 // Add this
 app.use((err, req, res, next) => {
@@ -1057,6 +1065,15 @@ app.use((err, req, res, next) => {
   // Default error handler
   res.status(500).json({ error: 'Something went wrong!' });
 });
+
+// Add this before your app.listen()
+app.get('/default-image.jpg', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'default-image.jpg'));
+});
+
+// Create a public folder and add a default image
+// You'll need to create a 'public' directory and add a default-image.jpg file
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
