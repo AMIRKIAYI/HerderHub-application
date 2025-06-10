@@ -40,16 +40,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Static File Serving
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, filePath) => {
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.jpg' || ext === '.jpeg') res.set('Content-Type', 'image/jpeg');
-    if (ext === '.png') res.set('Content-Type', 'image/png');
-    res.set('Access-Control-Allow-Origin', '*');
-  }
-}));
-
-console.log('Uploads served from:', path.join(__dirname, 'uploads'));
 
 // Mount the router
 app.get('/', (req, res) => {
@@ -148,13 +138,14 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadDir); // Use absolute path
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    // Normalize all JPEG extensions to .jpg
+    // Normalize extensions and ensure unique filenames
     const normalizedExt = ext === '.jpeg' ? '.jpg' : ext;
-    cb(null, Date.now() + normalizedExt);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + normalizedExt);
   }
 });
 
@@ -165,41 +156,60 @@ const upload = multer({
     const fileTypes = /jpeg|jpg|png|gif/;
     const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = fileTypes.test(file.mimetype);
-    extname && mimetype ? cb(null, true) : cb(new Error("Only images are allowed"));
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed (jpg, jpeg, png, gif)'), false);
+    }
   }
 });
 
 // Helper Functions
 function getImageUrl(req, imagePath) {
-  if (!imagePath) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+  if (!imagePath) {
+    return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+  }
   
-  // Normalize path and extension
-  const cleanPath = imagePath.replace(/^.*[\\\/]/, '')
-                            .replace(/\.jpeg$/, '.jpg');
+  // Remove any path traversal attempts and normalize extensions
+  const cleanPath = path.basename(imagePath).replace(/\.jpeg$/, '.jpg');
   
   return `${req.protocol}://${req.get('host')}/uploads/${cleanPath}`;
 }
 
 function cleanImagePath(img) {
   if (!img) return null;
-  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
+  // Remove any full URLs and path segments
+  return path.basename(img.replace(/^https?:\/\/[^\/]+/, ''));
 }
 
 
-
-
-
-function cleanImagePath(img) {
-  if (!img) return null;
-  // Remove any protocol/host if present
-  return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
-}
-
+// Static File Serving with proper headers
+app.use('/uploads', express.static(uploadDir, {
+  setHeaders: (res, filePath) => {
+    // Set proper content type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') {
+      res.set('Content-Type', 'image/jpeg');
+    } else if (ext === '.png') {
+      res.set('Content-Type', 'image/png');
+    } else if (ext === '.gif') {
+      res.set('Content-Type', 'image/gif');
+    }
+    
+    // Cache control for better performance
+    res.set('Cache-Control', 'public, max-age=31536000');
+    
+    // CORS headers
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // Default Image Route
 app.get('/default-image.jpg', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'default-image.jpg'));
 });
+
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -214,109 +224,82 @@ app.get('/health', (req, res) => {
 });
 
 
-// Post New Listing
-app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
+// Post New Listing with improved image handling
+app.post("/api/post-listing", upload.array("images", 10), async (req, res) => {
+  try {
     const {
-        title, description, category, price, quantity, location,
-        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
+      title, description, category, price, quantity, location,
+      additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
     } = req.body;
 
-    const images = req.files
-        ? req.files.map(file => file.filename).filter(name => name.match(/\.(jpg|jpeg|png|gif)$/i))
-        : [];
-
-    const listingData = {
-        title: title || null,
-        description: description || null,
-        category: category || null,
-        price: price || null,
-        quantity: quantity || null,
-        location: location || null,
-        additionalInfo: additionalInfo || null,
-        sellerName: sellerName || null,
-        sellerEmail: sellerEmail || null,
-        sellerPhone: sellerPhone || null,
-        sellerAddress: sellerAddress || null,
-        age: age || null,
-        sex: sex || null
-    };
-
-    if (!listingData.title || !listingData.description || !listingData.category || !listingData.price || !listingData.location || !listingData.sellerName || !listingData.sellerEmail) {
-        return res.status(400).json({ error: "Required fields are missing" });
+    // Validate required fields
+    if (!title || !description || !category || !price || !location || !sellerName || !sellerEmail) {
+      return res.status(400).json({ error: "Required fields are missing" });
     }
 
-    const insertQuery = `
-        INSERT INTO listings (
-            title, description, category, price, quantity, location,
-            additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress,
-            age, sex, images
+    // Process uploaded files
+    const images = req.files ? req.files.map(file => file.filename) : [];
+
+    // Insert listing into database
+    const [result] = await pool.promise().execute(
+      `INSERT INTO listings (
+        title, description, category, price, quantity, location,
+        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress,
+        age, sex, images
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title, description, category, price, quantity, location,
+        additionalInfo || null, sellerName, sellerEmail, sellerPhone || null,
+        sellerAddress || null, age || null, sex || null, 
+        JSON.stringify(images) // Store as JSON array
+      ]
+    );
+
+    const listingId = result.insertId;
+
+    // If images were uploaded, insert them into the images table
+    if (images.length > 0) {
+      await Promise.all(
+        images.map(image => 
+          pool.promise().execute(
+            'INSERT INTO images (listing_id, image_path) VALUES (?, ?)',
+            [listingId, image]
+          )
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      );
+    }
 
-    const imagePathsJson = JSON.stringify(images);
-
-    pool.execute(insertQuery, [
-        listingData.title,
-        listingData.description,
-        listingData.category,
-        listingData.price,
-        listingData.quantity,
-        listingData.location,
-        listingData.additionalInfo,
-        listingData.sellerName,
-        listingData.sellerEmail,
-        listingData.sellerPhone,
-        listingData.sellerAddress,
-        listingData.age,
-        listingData.sex,
-        imagePathsJson
-    ], (err, result) => {
-        if (err) {
-            console.error("Error inserting listing data:", err.message);
-            return res.status(500).json({ error: 'Failed to save listing' });
-        }
-
-        const listingId = result.insertId;
-
-        if (images.length === 0) {
-            return res.status(201).json({ message: "Listing posted successfully (no images)", listingId });
-        }
-
-        // Insert each image into images table
-        const insertImageQuery = `INSERT INTO images (listing_id, image_path) VALUES (?, ?)`;
-
-        const insertTasks = images.map(img =>
-            pool.promise().execute(insertImageQuery, [listingId, img])
-        );
-
-        Promise.all(insertTasks)
-            .then(() => {
-                res.status(201).json({ message: "Listing posted successfully", listingId });
-            })
-            .catch(imageErr => {
-                console.error("Error inserting image records:", imageErr.message);
-                res.status(500).json({ error: "Listing saved, but failed to record images" });
-            });
+    res.status(201).json({ 
+      message: "Listing posted successfully", 
+      listingId,
+      images: images.map(img => getImageUrl(req, img))
     });
+
+  } catch (error) {
+    console.error("Error posting listing:", error);
+    res.status(500).json({ error: "Failed to create listing" });
+  }
 });
 
 app.get("/api/listing/:id/images", (req, res) => {
   const { id } = req.params;
 
-  const query = `SELECT image_path FROM images WHERE listing_id = ?`;
-  pool.execute(query, [id], (err, results) => {
-    if (err) {
-      console.error("Failed to fetch images:", err.message);
-      return res.status(500).json({ error: "Server error" });
+  pool.execute(
+    `SELECT image_path FROM images WHERE listing_id = ?`,
+    [id],
+    (err, results) => {
+      if (err) {
+        console.error("Failed to fetch images:", err);
+        return res.status(500).json({ error: "Server error" });
+      }
+
+      const imageUrls = results.map(img => 
+        getImageUrl(req, img.image_path)
+      );
+
+      res.status(200).json(imageUrls);
     }
-
-    const fullUrls = results.map(img =>
-      `https://herderhub-application-production.up.railway.app//uploads/${img.image_path}`
-    );
-
-    res.status(200).json(fullUrls);
-  });
+  );
 });
 
 
@@ -365,39 +348,67 @@ const processedResults = results.map(listing => {
   
 
 
-// / GET endpoint to fetch a single listing by ID
-app.get("/api/listings/:id", (req, res) => {
-    const listingId = req.params.id;
-  
-    const query = "SELECT * FROM listings WHERE id = ?";
-    pool.execute(query, [listingId], (err, results) => {
-      if (err) {
-        console.error("Error fetching listing:", err.message);
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
-  
-      if (results.length === 0) {
-        return res.status(404).json({ error: "Listing not found" });
-      }
-  
-      const listing = results[0];
-      let images = [];
-  
-      // Assuming images are stored as a JSON string
-      try {
-        if (typeof listing.images === 'string') {
-          images = JSON.parse(listing.images);
-        } else if (Array.isArray(listing.images)) {
-          images = listing.images;
-        }
-      } catch (e) {
-        console.error(`Error parsing images: ${e.message}`);
-      }
-  
-      res.status(200).json({ ...listing, images });
-    });
+// Get listings with proper image URLs
+const getListingsWithImages = (req, listings) => {
+  return listings.map(listing => {
+    let images = [];
+    
+    try {
+      images = typeof listing.images === 'string' 
+        ? JSON.parse(listing.images) 
+        : listing.images || [];
+    } catch (e) {
+      console.error(`Image parse error for listing ${listing.id}:`, e);
+      images = [];
+    }
+
+    const imageUrls = images.map(img => getImageUrl(req, img));
+    
+    return {
+      ...listing,
+      images: imageUrls.length > 0 ? imageUrls : [getImageUrl(req, null)],
+      primaryImage: imageUrls[0] || getImageUrl(req, null)
+    };
   });
-  
+};
+
+// Single listing by ID
+app.get("/api/listings/:id", (req, res) => {
+  pool.execute(
+    "SELECT * FROM listings WHERE id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (results.length === 0) return res.status(404).json({ error: "Not found" });
+      
+      res.status(200).json(
+        getListingsWithImages(req, results)[0]
+      );
+    }
+  );
+});
+
+// Latest listings
+app.get('/api/latest-listings', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 3;
+  const offset = (page - 1) * limit;
+
+  pool.execute(
+    `SELECT id, title, description, price, location, images 
+     FROM listings 
+     ORDER BY created_at DESC 
+     LIMIT ? OFFSET ?`,
+    [limit, offset],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      
+      res.status(200).json(
+        getListingsWithImages(req, results)
+      );
+    }
+  );
+});
 
 // Listings Endpoints
 app.get("/api/listings", (req, res) => {
@@ -435,61 +446,6 @@ app.get("/api/listings", (req, res) => {
   });
 });
 
-
-
-
-app.get('/api/latest-listings', (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 3;
-  const offset = (page - 1) * limit;
-
-  const sql = `SELECT id, title, description, price, location, images 
-               FROM listings 
-               ORDER BY created_at DESC 
-               LIMIT ? OFFSET ?`;
-
-  pool.query(sql, [limit, offset], (err, results) => {
-    if (err) {
-      console.error("Error fetching listings:", err);
-      return res.status(500).send("Failed to load listings.");
-    }
-
-    if (results.length === 0) {
-      return res.json([]);
-    }
-
-    const baseUrl = `${req.protocol}://${req.get('host')}`; // Dynamically get server URL
-
-   // In your /api/latest-listings route
-const formattedResults = results.map(listing => {
-  let images = [];
-  
-  try {
-    images = typeof listing.images === 'string' 
-      ? JSON.parse(listing.images) 
-      : listing.images || [];
-  } catch (e) {
-    console.error(`Image parse error for listing ${listing.id}:`, e);
-    images = [];
-  }
-
-  // Convert to absolute URLs with proper fallback
-  const imageUrls = images.map(img => {
-    if (!img) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
-    if (img.startsWith('http')) return img;
-    return `${req.protocol}://${req.get('host')}/uploads/${img.replace(/^\/?uploads\//, '')}`;
-  });
-
-  return {
-    ...listing,
-    images: imageUrls.length > 0 ? imageUrls : [`${req.protocol}://${req.get('host')}/default-image.jpg`],
-    primaryImage: imageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
-  };
-});
-
-  res.json(formattedResults);
-});
-});
 
   
   
