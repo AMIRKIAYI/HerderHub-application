@@ -373,20 +373,38 @@ const getListingsWithImages = (req, listings) => {
 };
 
 // Single listing by ID
+// / GET endpoint to fetch a single listing by ID
 app.get("/api/listings/:id", (req, res) => {
-  pool.execute(
-    "SELECT * FROM listings WHERE id = ?",
-    [req.params.id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      if (results.length === 0) return res.status(404).json({ error: "Not found" });
-      
-      res.status(200).json(
-        getListingsWithImages(req, results)[0]
-      );
-    }
-  );
-});
+    const listingId = req.params.id;
+  
+    const query = "SELECT * FROM listings WHERE id = ?";
+    pool.execute(query, [listingId], (err, results) => {
+      if (err) {
+        console.error("Error fetching listing:", err.message);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+  
+      const listing = results[0];
+      let images = [];
+  
+      // Assuming images are stored as a JSON string
+      try {
+        if (typeof listing.images === 'string') {
+          images = JSON.parse(listing.images);
+        } else if (Array.isArray(listing.images)) {
+          images = listing.images;
+        }
+      } catch (e) {
+        console.error(`Error parsing images: ${e.message}`);
+      }
+  
+      res.status(200).json({ ...listing, images });
+    });
+  });
 
 // Latest listings
 
