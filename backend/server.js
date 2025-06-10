@@ -37,6 +37,17 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// Static File Serving
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') res.set('Content-Type', 'image/jpeg');
+    if (ext === '.png') res.set('Content-Type', 'image/png');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+
 // Mount the router
 app.get('/', (req, res) => {
   res.send('Backend is running!');
@@ -181,16 +192,6 @@ function cleanImagePath(img) {
   return img.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/?uploads\//, '');
 }
 
-// Static File Serving
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, filePath) => {
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.jpg' || ext === '.jpeg') res.set('Content-Type', 'image/jpeg');
-    if (ext === '.png') res.set('Content-Type', 'image/png');
-    res.set('Access-Control-Allow-Origin', '*');
-  }
-}));
 
 // Default Image Route
 app.get('/default-image.jpg', (req, res) => {
