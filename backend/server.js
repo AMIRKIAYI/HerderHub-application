@@ -212,36 +212,109 @@ app.get('/health', (req, res) => {
 
 // Post New Listing
 app.post("/api/post-listing", upload.array("images", 10), (req, res) => {
-  const { title, description, category, price, quantity, location, additionalInfo, 
-          sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex } = req.body;
+    const {
+        title, description, category, price, quantity, location,
+        additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress, age, sex
+    } = req.body;
 
-  const images = req.files ? req.files.map(file => file.filename) : [];
-  const requiredFields = { title, description, category, price, location, sellerName, sellerEmail };
-  
-  if (Object.values(requiredFields).some(field => !field)) {
-    return res.status(400).json({ error: "Required fields are missing" });
-  }
+    const images = req.files
+        ? req.files.map(file => file.filename).filter(name => name.match(/\.(jpg|jpeg|png|gif)$/i))
+        : [];
 
-  pool.execute(
-    `INSERT INTO listings (
-      title, description, category, price, quantity, location, 
-      additionalInfo, sellerName, sellerEmail, sellerPhone, 
-      sellerAddress, age, sex, images
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      title, description, category, price, quantity, location,
-      additionalInfo || null, sellerName, sellerEmail, sellerPhone || null,
-      sellerAddress || null, age || null, sex || null, JSON.stringify(images)
-    ],
-    (err, result) => {
-      if (err) {
-        console.error("Database error:", err);
-        return res.status(500).json({ error: 'Failed to save listing' });
-      }
-      res.status(201).json({ message: "Listing posted successfully", listingId: result.insertId });
+    const listingData = {
+        title: title || null,
+        description: description || null,
+        category: category || null,
+        price: price || null,
+        quantity: quantity || null,
+        location: location || null,
+        additionalInfo: additionalInfo || null,
+        sellerName: sellerName || null,
+        sellerEmail: sellerEmail || null,
+        sellerPhone: sellerPhone || null,
+        sellerAddress: sellerAddress || null,
+        age: age || null,
+        sex: sex || null
+    };
+
+    if (!listingData.title || !listingData.description || !listingData.category || !listingData.price || !listingData.location || !listingData.sellerName || !listingData.sellerEmail) {
+        return res.status(400).json({ error: "Required fields are missing" });
     }
-  );
+
+    const insertQuery = `
+        INSERT INTO listings (
+            title, description, category, price, quantity, location,
+            additionalInfo, sellerName, sellerEmail, sellerPhone, sellerAddress,
+            age, sex, images
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const imagePathsJson = JSON.stringify(images);
+
+    pool.execute(insertQuery, [
+        listingData.title,
+        listingData.description,
+        listingData.category,
+        listingData.price,
+        listingData.quantity,
+        listingData.location,
+        listingData.additionalInfo,
+        listingData.sellerName,
+        listingData.sellerEmail,
+        listingData.sellerPhone,
+        listingData.sellerAddress,
+        listingData.age,
+        listingData.sex,
+        imagePathsJson
+    ], (err, result) => {
+        if (err) {
+            console.error("Error inserting listing data:", err.message);
+            return res.status(500).json({ error: 'Failed to save listing' });
+        }
+
+        const listingId = result.insertId;
+
+        if (images.length === 0) {
+            return res.status(201).json({ message: "Listing posted successfully (no images)", listingId });
+        }
+
+        // Insert each image into images table
+        const insertImageQuery = `INSERT INTO images (listing_id, image_path) VALUES (?, ?)`;
+
+        const insertTasks = images.map(img =>
+            pool.promise().execute(insertImageQuery, [listingId, img])
+        );
+
+        Promise.all(insertTasks)
+            .then(() => {
+                res.status(201).json({ message: "Listing posted successfully", listingId });
+            })
+            .catch(imageErr => {
+                console.error("Error inserting image records:", imageErr.message);
+                res.status(500).json({ error: "Listing saved, but failed to record images" });
+            });
+    });
 });
+
+app.get("/api/listing/:id/images", (req, res) => {
+  const { id } = req.params;
+
+  const query = `SELECT image_path FROM images WHERE listing_id = ?`;
+  pool.execute(query, [id], (err, results) => {
+    if (err) {
+      console.error("Failed to fetch images:", err.message);
+      return res.status(500).json({ error: "Server error" });
+    }
+
+    const fullUrls = results.map(img =>
+      `http://localhost:5000/uploads/${img.image_path}`
+    );
+
+    res.status(200).json(fullUrls);
+  });
+});
+
 
 
 app.get("/api/listings/category/:category", (req, res) => {
