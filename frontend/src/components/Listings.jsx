@@ -164,15 +164,16 @@ function Listings() {
                 className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow transform hover:scale-[1.02] flex flex-col"
               >
                 <div className="relative h-48">
-                  <img
-                    src={
-                      listing.images && listing.images.length > 0
-                        ? `https://herderhub-application-production.up.railway.app/uploads/${listing.images[0]}`
-                        : "https://via.placeholder.com/300"
-                    }
-                    alt={listing.title}
-                    className="w-full h-full object-cover"
-                  />
+                 <img
+  src={
+    listing.images && listing.images.length > 0
+      ? listing.images[0] // it's already a full URL
+      : "https://via.placeholder.com/300"
+  }
+  alt={listing.title}
+  className="w-full h-full object-cover"
+/>
+
                   <span className="absolute top-2 left-2 bg-[#ff5100] text-white text-xs font-semibold py-1 px-2 rounded">
                     {listing.category}
                   </span>
