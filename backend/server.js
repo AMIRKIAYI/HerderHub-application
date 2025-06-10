@@ -389,25 +389,58 @@ app.get("/api/listings/:id", (req, res) => {
 });
 
 // Latest listings
+
 app.get('/api/latest-listings', (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 3;
   const offset = (page - 1) * limit;
 
-  pool.execute(
-    `SELECT id, title, description, price, location, images 
-     FROM listings 
-     ORDER BY created_at DESC 
-     LIMIT ? OFFSET ?`,
-    [limit, offset],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      
-      res.status(200).json(
-        getListingsWithImages(req, results)
-      );
+  const sql = `SELECT id, title, description, price, location, images 
+               FROM listings 
+               ORDER BY created_at DESC 
+               LIMIT ? OFFSET ?`;
+
+  pool.query(sql, [limit, offset], (err, results) => {
+    if (err) {
+      console.error("Error fetching listings:", err);
+      return res.status(500).send("Failed to load listings.");
     }
-  );
+
+    if (results.length === 0) {
+      return res.json([]);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`; // Dynamically get server URL
+
+   // In your /api/latest-listings route
+const formattedResults = results.map(listing => {
+  let images = [];
+  
+  try {
+    images = typeof listing.images === 'string' 
+      ? JSON.parse(listing.images) 
+      : listing.images || [];
+  } catch (e) {
+    console.error(`Image parse error for listing ${listing.id}:`, e);
+    images = [];
+  }
+
+  // Convert to absolute URLs with proper fallback
+  const imageUrls = images.map(img => {
+    if (!img) return `${req.protocol}://${req.get('host')}/default-image.jpg`;
+    if (img.startsWith('http')) return img;
+    return `${req.protocol}://${req.get('host')}/uploads/${img.replace(/^\/?uploads\//, '')}`;
+  });
+
+  return {
+    ...listing,
+    images: imageUrls.length > 0 ? imageUrls : [`${req.protocol}://${req.get('host')}/default-image.jpg`],
+    primaryImage: imageUrls[0] || `${req.protocol}://${req.get('host')}/default-image.jpg`
+  };
+});
+
+  res.json(formattedResults);
+});
 });
 
 // Listings Endpoints
