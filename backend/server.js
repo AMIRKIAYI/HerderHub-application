@@ -312,7 +312,7 @@ app.get("/api/listing/:id/images", (req, res) => {
     }
 
     const fullUrls = results.map(img =>
-      `http://localhost:5000/uploads/${img.image_path}`
+      `https://herderhub-application-production.up.railway.app//uploads/${img.image_path}`
     );
 
     res.status(200).json(fullUrls);
